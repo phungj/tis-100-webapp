@@ -12,14 +12,14 @@ export type ProblemDescription = {
     title: string,
     description: string,
     seed: Seed,
-    inputNode: NodeCoordinates,
+    inputNodes: NodeCoordinates[],
     inputs: Data[][],
-    outputNode: NodeCoordinates,
+    outputNodes: NodeCoordinates[],
     brokenNodes: NodeCoordinates[],
     stackNodes: NodeCoordinates[]
 };
 
 export type ProblemLogic = {
     generateInputs: (seed: Seed) => Data[],
-    computeExpectedOutput: (input: Data[]) => Data
+    computeExpectedOutput: (input: Data[], outputIndex: number) => Data
 };

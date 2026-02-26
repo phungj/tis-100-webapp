@@ -1,4 +1,4 @@
-import {ProblemDescription, ProblemLogic, NodeCoordinates} from "@/data/ProblemSpecificationTypes";
+import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
 
 export const MAX_VALUE = 999;
 export const MIN_VALUE = -999;
@@ -6,14 +6,21 @@ export const MIN_VALUE = -999;
 export type Data = number[];
 type Pointer = number;
 
-type EmptyState = {};
+// TODO: Do the typeof thing for this guy if possible and necessary?
+type NodeTypes = "EMPTY" | "INPUT" | "OUTPUT" | "COMPUTATION";
 
-type InputNodeState = {
+type WithType<T extends NodeTypes> = {
+    type: T
+};
+
+type EmptyState = WithType<"EMPTY">;
+
+type InputNodeState = WithType<"INPUT"> & {
     data: Data,
     dataPointer: Pointer
 };
 
-type OutputNodeState = {
+type OutputNodeState = WithType<"OUTPUT"> & {
     data: Data,
     expectedOutput: Data,
     dataPointer: Pointer
@@ -21,12 +28,14 @@ type OutputNodeState = {
 
 type RegisterValue = number;
 
+// TODO: Do the typeof thing for this guy if possible and necessary?
 enum Register {
     ACC,
     BAK,
     NIL
 }
 
+// TODO: Do the typeof thing for this guy if possible and necessary?
 enum Port {
     UP,
     RIGHT,
@@ -36,9 +45,25 @@ enum Port {
     LAST
 }
 
-// TODO :Create enum for instructions as strings
+const Instructions = {
+    NOP: "NOP",
+    MOV: "MOV",
+    SWP: "SWP",
+    SAV: "SAV",
+    ADD: "ADD",
+    SUB: "SUB",
+    NEG: "NEG",
+    JMP: "JMP",
+    JEZ: "JEZ",
+    JNZ: "JNZ",
+    JGZ: "JGZ",
+    JLZ: "JLZ",
+    JRO: "JRO",
+} as const;
 
-type ComputationNodeState = {
+type Instruction = typeof Instructions[keyof typeof Instructions];
+
+type ComputationNodeState = WithType<"COMPUTATION"> & {
     instructions: string[],
     instructionPointer: Pointer,
     acc: RegisterValue,
@@ -59,39 +84,88 @@ export class Interpreter {
 
     // TODO: Implement the rest of the node initialization here as necessary
     constructor(problemDescription: ProblemDescription, problemLogic: ProblemLogic) {
-        // TODO: Determine if input and output are at the same spot every time
-        // TODO: Replace with a for loop that inits the top and bottom with empty nodes and the middle 3 with regular nodes
-        this.nodes = [...Array(this.GRID_HEIGHT)].map(_=>Array(this.GRID_WIDTH).fill({}));
+        this.nodes = [];
+
+        for (let i = 0; i < this.GRID_HEIGHT; i++) {
+            let fillFunction;
+
+            fillFunction = i == 0 || i == this.GRID_HEIGHT - 1 ? this.emptyNodeFactory() : this.computationNodeFactory();
+
+            this.nodes.push(Array(this.GRID_WIDTH).fill(fillFunction));
+        }
+
         this.testCaseIndex = 0;
-        const startingInputs = problemDescription.inputs[this.testCaseIndex];
 
-        const inputNode = problemDescription.inputNode;
+        const inputNodes = problemDescription.inputNodes;
+        const currentInputs = problemDescription.inputs[this.testCaseIndex];
 
+        for (let i = 0; i < problemDescription.inputNodes.length; i++) {
+            const inputNode = inputNodes[i];
 
-        this.nodes[inputNode.y][inputNode.x] = {
-            data: startingInputs,
-            dataPointer: 0
-        };
+            this.nodes[inputNode.y][inputNode.x] = {
+                type: "INPUT",
+                data: currentInputs[i],
+                dataPointer: 0
+            };
+        }
 
-        const outputNode = problemDescription.outputNode;
+        const outputNodes = problemDescription.outputNodes;
 
-        this.nodes[outputNode.y][outputNode.x] = {
-            data: [],
-            expectedOutput: problemLogic.computeExpectedOutput(startingInputs),
-            dataPointer: 0
-        };
+        for (let i = 0; i < problemDescription.outputNodes.length; i++) {
+            const outputNode = outputNodes[i];
+
+            this.nodes[outputNode.y][outputNode.x] = {
+                type: "OUTPUT",
+                data: [],
+                expectedOutput: problemLogic.computeExpectedOutput(currentInputs, i),
+                dataPointer: 0
+            };
+        }
     }
 
     public step() {
         for (let r = 1; r < this.nodes.length - 1; r++) {
             for (let c = 0; c < this.nodes[0].length - 1; c++) {
-                const currentNode = this.nodes[r][c] as ComputationNodeState;
+                const currentNode = this.nodes[r][c];
 
-                // TODO: Add the condition to see if it's a ComputationNode, remove cast
-                this.executeInstruction(currentNode, {r, c});
+                if (currentNode.type == "COMPUTATION") {
+                    this.executeInstruction(currentNode, {x: c, y: r});
+                }
             }
         }
     }
+
+    private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
+        if (node.instructions && !node.writeValue) {
+            const instructionComponents = node.instructions[node.instructionPointer].trim().split(/\s+/);
+
+            // TODO: Create a custom exception and throw it on error
+            // TODO: Create a not implemented exception and throw it when necessary
+            // TODO: Implement the rest of the instructions here alongside comments and labels
+            switch (instructionComponents[0]) {
+                case (Instructions.NOP):
+                    if (instructionComponents.length !== 1) {
+                        // TODO: Throw
+                    } else {
+                        node.instructionPointer++;
+                        break;
+                    }
+                case (Instructions.MOV):
+                    if (instructionComponents.length !== 3) {
+                        // TODO: Throw
+                    } else {
+                        // TODO: Attempt to read the source value, block if not available
+                        // TODO: Write the read value in the given direction
+                        break;
+                    }
+            }
+
+            if (node.instructionPointer >= node.instructions.length) {
+                node.instructionPointer = 0;
+            }
+        }
+    }
+
 
     // TODO:
     public reset() {
@@ -99,25 +173,27 @@ export class Interpreter {
     }
 
     // tODO
-    public updateInstructions() {
+    public updateInstructions({x, y}: NodeCoordinates, instructions: string[]) {
 
     }
 
-    // TODO :Figure out how to handle syntax errors
-    // TODO: Implement the rest of the instructions here as necesary
-    private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
-        // TODO: Cast after this check?
-        if (node.instructions) {
-            // TODO: Get a regex here for whitespace
-            const instructionComponents = node.instructions[node.instructionPointer].split();
+    public getNodes(): NodeState[][] {
+        return this.nodes;
+    }
 
-            // TODO: Read the opcode
-            // TODO: Execute it accordingly
-            // TODO: Increment the IP accordingly
+    private emptyNodeFactory(): EmptyState {
+        return {type: "EMPTY"};
+    }
 
-            if (node.instructionPointer >= node.instructions.length) {
-                node.instructionPointer = 0;
-            }
-        }
+    private computationNodeFactory(): ComputationNodeState {
+        return {
+            type: "COMPUTATION",
+            instructions: [],
+            instructionPointer: 0,
+            acc: 0,
+            bak: 0,
+            writeValue: null,
+            writePort: null
+        };
     }
 }
