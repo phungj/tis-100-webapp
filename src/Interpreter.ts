@@ -4,7 +4,7 @@ type InputNodeState = {
 };
 
 type OutputNodeState = {
-    data: []
+    data: number[]
 };
 
 type ComputationNodeState = {
