@@ -93,8 +93,20 @@ export class Interpreter {
         }
     }
 
+    // TODO:
+    public reset() {
+
+    }
+
+    // tODO
+    public updateInstructions() {
+
+    }
+
     // TODO :Figure out how to handle syntax errors
+    // TODO: Implement the rest of the instructions here as necesary
     private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
+        // TODO: Cast after this check?
         if (node.instructions) {
             // TODO: Get a regex here for whitespace
             const instructionComponents = node.instructions[node.instructionPointer].split();
