@@ -1,16 +1,22 @@
+type Data = number[];
+type Pointer = number;
+
 type InputNodeState = {
-    data: number[],
-    dataPointer: number
+    data: Data,
+    dataPointer: Pointer
 };
 
 type OutputNodeState = {
-    data: number[]
+    data: Data
 };
+
+type Register = number;
 
 type ComputationNodeState = {
     instructions: string[],
-    instructionPointer: number,
-    // TODO: Get the rest of the class attributes here
+    instructionPointer: Pointer,
+    acc: Register,
+    bak: Register
 }
 
 type NodeState = InputNodeState | OutputNodeState | ComputationNodeState;
