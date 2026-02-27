@@ -1,5 +1,8 @@
 import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
+import {InstructionSyntaxError, NotImplementedError} from "@/src/Errors";
 
+const GRID_WIDTH = 4;
+const GRID_HEIGHT = 5;
 export const MAX_VALUE = 999;
 export const MIN_VALUE = -999;
 
@@ -28,22 +31,35 @@ type OutputNodeState = WithType<"OUTPUT"> & {
 
 type RegisterValue = number;
 
-// TODO: Do the typeof thing for this guy if possible and necessary?
-enum Register {
-    ACC,
-    BAK,
-    NIL
-}
+const Registers = {
+    ACC: "ACC",
+    BAK: "BAK",
+    NIL: "NIL",
+} as const;
 
-// TODO: Do the typeof thing for this guy if possible and necessary?
-enum Port {
-    UP,
-    RIGHT,
-    DOWN,
-    LEFT,
-    ANY,
-    LAST
-}
+type Register = typeof Registers[keyof typeof Registers];
+
+const Ports = {
+    UP: "UP",
+    RIGHT: "RIGHT",
+    DOWN: "DOWN",
+    LEFT: "LEFT",
+    ANY: "ANY",
+    LAST: "LAST",
+} as const;
+
+type Port = typeof Ports[keyof typeof Ports];
+
+type Location = Port | Register;
+
+const OppositePorts = {
+    [Ports.UP]: Ports.DOWN,
+    [Ports.DOWN]: Ports.UP,
+    [Ports.LEFT]: Ports.RIGHT,
+    [Ports.RIGHT]: Ports.LEFT,
+    [Ports.ANY]: Ports.ANY,
+    [Ports.LAST]: Ports.LAST,
+} as const;
 
 const Instructions = {
     NOP: "NOP",
@@ -61,8 +77,6 @@ const Instructions = {
     JRO: "JRO",
 } as const;
 
-type Instruction = typeof Instructions[keyof typeof Instructions];
-
 type ComputationNodeState = WithType<"COMPUTATION"> & {
     instructions: string[],
     instructionPointer: Pointer,
@@ -75,9 +89,6 @@ type ComputationNodeState = WithType<"COMPUTATION"> & {
 type NodeState = InputNodeState | OutputNodeState | ComputationNodeState | EmptyState;
 
 export class Interpreter {
-    private readonly GRID_WIDTH = 4;
-    private readonly GRID_HEIGHT = 5;
-
     private readonly nodes: NodeState[][];
 
     private testCaseIndex: number;
@@ -86,12 +97,12 @@ export class Interpreter {
     constructor(problemDescription: ProblemDescription, problemLogic: ProblemLogic) {
         this.nodes = [];
 
-        for (let i = 0; i < this.GRID_HEIGHT; i++) {
+        for (let i = 0; i < GRID_HEIGHT; i++) {
             let fillFunction;
 
-            fillFunction = i == 0 || i == this.GRID_HEIGHT - 1 ? this.emptyNodeFactory() : this.computationNodeFactory();
+            fillFunction = i == 0 || i == GRID_HEIGHT - 1 ? this.emptyNodeFactory() : this.computationNodeFactory();
 
-            this.nodes.push(Array(this.GRID_WIDTH).fill(fillFunction));
+            this.nodes.push(Array(GRID_WIDTH).fill(fillFunction));
         }
 
         this.testCaseIndex = 0;
@@ -135,37 +146,6 @@ export class Interpreter {
         }
     }
 
-    private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
-        if (node.instructions && !node.writeValue) {
-            const instructionComponents = node.instructions[node.instructionPointer].trim().split(/\s+/);
-
-            // TODO: Create a custom exception and throw it on error
-            // TODO: Create a not implemented exception and throw it when necessary
-            // TODO: Implement the rest of the instructions here alongside comments and labels
-            switch (instructionComponents[0]) {
-                case (Instructions.NOP):
-                    if (instructionComponents.length !== 1) {
-                        // TODO: Throw
-                    } else {
-                        node.instructionPointer++;
-                        break;
-                    }
-                case (Instructions.MOV):
-                    if (instructionComponents.length !== 3) {
-                        // TODO: Throw
-                    } else {
-                        // TODO: Attempt to read the source value, block if not available
-                        // TODO: Write the read value in the given direction
-                        break;
-                    }
-            }
-
-            if (node.instructionPointer >= node.instructions.length) {
-                node.instructionPointer = 0;
-            }
-        }
-    }
-
 
     // TODO:
     public reset() {
@@ -179,6 +159,107 @@ export class Interpreter {
 
     public getNodes(): NodeState[][] {
         return this.nodes;
+    }
+
+    private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
+        if (node.instructions && !node.writeValue) {
+            const instructionComponents = node.instructions[node.instructionPointer].trim().split(/\s+/);
+
+            const instructionComponentsLength = instructionComponents.length;
+            const opcode = instructionComponents[0];
+
+            // TODO: Implement the rest of the instructions here alongside comments and labels
+            switch (opcode) {
+                case (Instructions.NOP):
+                    const NOP_COMPONENT_LENGTH = 1;
+
+                    if (instructionComponentsLength !== NOP_COMPONENT_LENGTH) {
+                        throw new InstructionSyntaxError(`Instruction expects ${NOP_COMPONENT_LENGTH} component but had ${instructionComponentsLength}`);
+                    } else {
+                        this.executeNOP(node);
+                        break;
+                    }
+                case (Instructions.MOV):
+                    const MOV_COMPONENT_LENGTH = 3;
+
+                    if (instructionComponentsLength !== MOV_COMPONENT_LENGTH) {
+                        throw new InstructionSyntaxError(`Instruction expects ${MOV_COMPONENT_LENGTH} component but had ${instructionComponentsLength}`);
+                    } else {
+                        this.executeMOV(node, {x, y}, instructionComponents);
+                        break;
+                    }
+                default:
+                    throw new InstructionSyntaxError(`Instruction ${opcode} not defined`);
+            }
+
+            if (node.instructionPointer >= node.instructions.length) {
+                node.instructionPointer = 0;
+            }
+        }
+    }
+
+    // TODO: Implement rest of ports here
+    private getNeighborNode({x, y}: NodeCoordinates, port: Port): NodeState | null {
+        switch (port) {
+            case Ports.UP:
+                return y === GRID_HEIGHT - 1 ? null : this.nodes[y - 1][x];
+            case Ports.RIGHT:
+                return x === GRID_WIDTH - 1 ? null : this.nodes[y][x + 1];
+            case Ports.DOWN:
+                return y === 0 ? null : this.nodes[y - 1][x];
+            case Ports.LEFT:
+                return x === 0 ? null : this.nodes[y][x - 1];
+            default:
+                throw new InstructionSyntaxError(`Port ${port} not defined`);
+        }
+    }
+
+    private executeNOP(node: ComputationNodeState) {
+        node.instructionPointer++;
+    }
+
+    // TODO: Add additional node types here
+    private executeMOV(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
+
+        // TODO: Update this to handle registers as well
+        // TODO: Update the location type with the kind hint for disambaguation
+        // TODO: Write helper function ot validate register or node and reuse
+        // TODO: Write is valid register function
+        // TODO: If it's a valid register, read appropriately
+        // TODO: Likewise, if the dest is a valid register, write appropriately
+        const sourcePort = Ports[instructionComponents[1]];
+        const destinationPort = Ports[instructionComponents[2]];
+        const sourceNode = this.getNeighborNode({x, y}, sourcePort);
+
+        let readData;
+
+        if (sourceNode && sourceNode.type == "INPUT") {
+            readData = sourceNode.data[sourceNode.dataPointer];
+
+            sourceNode.dataPointer++;
+        } else if (sourceNode && sourceNode.type == "COMPUTATION" && sourceNode.writePort === OppositePorts[sourcePort]) {
+            readData = sourceNode.writeValue;
+
+            sourceNode.writeValue = null;
+            sourceNode.writePort = null;
+            sourceNode.instructionPointer++;
+        }
+
+        if (readData && this.isValidPort(destinationPort)) {
+            node.writeValue = readData;
+            node.writePort = Ports[destinationPort];
+        }
+    }
+
+    // TODO: Write a function that updates the test case index accordingly
+    // TODO: Figure out how to handle random test case generation
+
+    private isValidPort(input: string): input is Port {
+        return Object.values(Ports).includes(input as Port);
+    }
+
+    private isValidRegister(input: string): input is Register {
+        return Object.values(Registers).includes(input as Register);
     }
 
     private emptyNodeFactory(): EmptyState {
