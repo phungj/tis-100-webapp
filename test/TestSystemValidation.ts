@@ -16,8 +16,9 @@ for (let i = 0; i < 5; i++) {
 interpreter.printNodes();
 
 // TODO: Implement literal handling for reading
+// TODO: Implement reset method (will need to store problem objects)
 // TODO: Update error types to include node coordinates and instruction pointer
-// TODO: Implement completed and wrong functions for interpreter
-// TODO: Completed returns true if done
-// TODO: Wrong returns indices of mismtaching values
+// TODO: Completed function returns true if done
 // TODO: Implement a basic frontend from this
+// TODO: DEtermine and enforce line limit and line character limit for text input fields
+// TODO: Set up daisy ui

@@ -152,6 +152,13 @@ export class Interpreter {
 
     }
 
+    // tODO:
+    public completed() {
+
+    }
+
+    // TODO: Wrong function returns indices of mismtaching values
+
     // tODO
     public updateInstructions({x, y}: NodeCoordinates, instructions: string[]) {
         const node = this.nodes[y][x];
@@ -183,6 +190,10 @@ export class Interpreter {
 
             console.log()
         }
+    }
+
+    public getNodes(): NodeState[][] {
+        return this.nodes;
     }
 
     private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
@@ -337,6 +348,11 @@ export class Interpreter {
         } else {
             throw new InstructionSyntaxError(`${input} is not a valid location`);
         }
+    }
+
+
+    private isValidInteger(input: string): number {
+
     }
 
     private emptyNodeFactory(): EmptyState {
