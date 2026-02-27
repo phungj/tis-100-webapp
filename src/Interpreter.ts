@@ -1,8 +1,8 @@
 import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
-import {InstructionSyntaxError, NotImplementedError} from "@/src/Errors";
+import {IllegalArgumentError, InstructionSyntaxError, NotImplementedError} from "@/src/Errors";
 
-const GRID_WIDTH = 4;
-const GRID_HEIGHT = 5;
+export const GRID_WIDTH = 4;
+export const GRID_HEIGHT = 5;
 export const MAX_VALUE = 999;
 export const MIN_VALUE = -999;
 
@@ -26,7 +26,6 @@ type InputNodeState = WithType<"INPUT"> & {
 type OutputNodeState = WithType<"OUTPUT"> & {
     data: Data,
     expectedOutput: Data,
-    dataPointer: Pointer
 };
 
 type RegisterValue = number;
@@ -50,7 +49,9 @@ const Ports = {
 
 type Port = typeof Ports[keyof typeof Ports];
 
-type Location = Port | Register;
+type RegisterLocation = WithType<"REGISTER"> & {location: Register};
+type PortLocation = WithType<"PORT"> & {location: Port};
+type Location = RegisterLocation | PortLocation;
 
 const OppositePorts = {
     [Ports.UP]: Ports.DOWN,
@@ -100,9 +101,9 @@ export class Interpreter {
         for (let i = 0; i < GRID_HEIGHT; i++) {
             let fillFunction;
 
-            fillFunction = i == 0 || i == GRID_HEIGHT - 1 ? this.emptyNodeFactory() : this.computationNodeFactory();
+            fillFunction = i == 0 || i == GRID_HEIGHT - 1 ? this.emptyNodeFactory : this.computationNodeFactory;
 
-            this.nodes.push(Array(GRID_WIDTH).fill(fillFunction));
+            this.nodes.push(Array.from({length: GRID_WIDTH}, () => fillFunction()));
         }
 
         this.testCaseIndex = 0;
@@ -129,7 +130,6 @@ export class Interpreter {
                 type: "OUTPUT",
                 data: [],
                 expectedOutput: problemLogic.computeExpectedOutput(currentInputs, i),
-                dataPointer: 0
             };
         }
     }
@@ -154,15 +154,43 @@ export class Interpreter {
 
     // tODO
     public updateInstructions({x, y}: NodeCoordinates, instructions: string[]) {
+        const node = this.nodes[y][x];
 
+        if (node.type == "COMPUTATION") {
+            node.instructions = instructions;
+        } else {
+            throw new IllegalArgumentError(`Node with coordinates ${x}, ${y} is not a computation node`);
+        }
     }
 
-    public getNodes(): NodeState[][] {
-        return this.nodes;
+    public printNodes() {
+        for (const row of this.nodes) {
+            for (const node of row) {
+                switch (node.type) {
+                    case "EMPTY":
+                        process.stdout.write("EMPTY ");
+                        break;
+                    case "INPUT":
+                        process.stdout.write(`INPUT: ${node.data}, ${node.dataPointer} `);
+                        break;
+                    case "OUTPUT":
+                        process.stdout.write(`OUTPUT: ${node.data}, ${node.expectedOutput} `);
+                        break;
+                    case "COMPUTATION":
+                        process.stdout.write(`COMPUTATION: ${node.instructions}, ${node.instructionPointer} `);
+                }
+            }
+
+            console.log()
+        }
     }
 
     private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
-        if (node.instructions && !node.writeValue) {
+        if (node.instructions.length !== 0 && !node.writeValue) {
+            if (node.instructionPointer >= node.instructions.length) {
+                node.instructionPointer = 0;
+            }
+
             const instructionComponents = node.instructions[node.instructionPointer].trim().split(/\s+/);
 
             const instructionComponentsLength = instructionComponents.length;
@@ -191,10 +219,6 @@ export class Interpreter {
                 default:
                     throw new InstructionSyntaxError(`Instruction ${opcode} not defined`);
             }
-
-            if (node.instructionPointer >= node.instructions.length) {
-                node.instructionPointer = 0;
-            }
         }
     }
 
@@ -206,7 +230,7 @@ export class Interpreter {
             case Ports.RIGHT:
                 return x === GRID_WIDTH - 1 ? null : this.nodes[y][x + 1];
             case Ports.DOWN:
-                return y === 0 ? null : this.nodes[y - 1][x];
+                return y === 0 ? null : this.nodes[y + 1][x];
             case Ports.LEFT:
                 return x === 0 ? null : this.nodes[y][x - 1];
             default:
@@ -220,39 +244,76 @@ export class Interpreter {
 
     // TODO: Add additional node types here
     private executeMOV(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
+        const readData = this.executeRead(node, {x, y}, this.isValidPortOrRegister(instructionComponents[1]));
 
-        // TODO: Update this to handle registers as well
-        // TODO: Update the location type with the kind hint for disambaguation
-        // TODO: Write helper function ot validate register or node and reuse
-        // TODO: Write is valid register function
-        // TODO: If it's a valid register, read appropriately
-        // TODO: Likewise, if the dest is a valid register, write appropriately
-        const sourcePort = Ports[instructionComponents[1]];
-        const destinationPort = Ports[instructionComponents[2]];
-        const sourceNode = this.getNeighborNode({x, y}, sourcePort);
-
-        let readData;
-
-        if (sourceNode && sourceNode.type == "INPUT") {
-            readData = sourceNode.data[sourceNode.dataPointer];
-
-            sourceNode.dataPointer++;
-        } else if (sourceNode && sourceNode.type == "COMPUTATION" && sourceNode.writePort === OppositePorts[sourcePort]) {
-            readData = sourceNode.writeValue;
-
-            sourceNode.writeValue = null;
-            sourceNode.writePort = null;
-            sourceNode.instructionPointer++;
-        }
-
-        if (readData && this.isValidPort(destinationPort)) {
-            node.writeValue = readData;
-            node.writePort = Ports[destinationPort];
+        if (readData) {
+            this.executeWrite(node, {x, y}, this.isValidPortOrRegister(instructionComponents[2]), readData);
         }
     }
 
     // TODO: Write a function that updates the test case index accordingly
     // TODO: Figure out how to handle random test case generation
+
+    private executeRead(node: ComputationNodeState, {x, y}: NodeCoordinates, sourceLocation: Location): number | null {
+        if (sourceLocation.type === "PORT") {
+            const sourcePort = sourceLocation.location;
+            const sourceNode = this.getNeighborNode({x, y}, sourcePort);
+
+            if (sourceNode && sourceNode.type == "INPUT") {
+                const readData = sourceNode.data[sourceNode.dataPointer];
+
+                sourceNode.dataPointer++;
+
+                return readData;
+            } else if (sourceNode && sourceNode.type == "COMPUTATION" && sourceNode.writePort === OppositePorts[sourcePort]) {
+                const readData = sourceNode.writeValue;
+
+                sourceNode.writeValue = null;
+                sourceNode.writePort = null;
+                sourceNode.instructionPointer++;
+
+                return readData
+            } else {
+                return null;
+            }
+        } else {
+            switch (sourceLocation.location) {
+                case "ACC":
+                    return node.acc;
+                case "BAK":
+                    throw new IllegalArgumentError("BAK cannot be directly read");
+                case "NIL":
+                    return 0;
+            }
+        }
+    }
+
+    private executeWrite(node: ComputationNodeState, {x, y}: NodeCoordinates, destinationLocation: Location, writeData: number) {
+        if (destinationLocation.type === "PORT") {
+            const destinationNode = this.getNeighborNode({x, y}, destinationLocation.location);
+
+            if (destinationNode && destinationNode.type == "OUTPUT") {
+                destinationNode.data.push(writeData);
+
+                node.instructionPointer++;
+            } else {
+                node.writeValue = writeData;
+                node.writePort = destinationLocation.location;
+            }
+        } else {
+            switch (destinationLocation.location) {
+                case "ACC":
+                    node.acc = writeData;
+                    break;
+                case "BAK":
+                    throw new IllegalArgumentError("BAK cannot be directly written");
+                case "NIL":
+                    break;
+            }
+
+            node.instructionPointer++;
+        }
+    }
 
     private isValidPort(input: string): input is Port {
         return Object.values(Ports).includes(input as Port);
@@ -260,6 +321,22 @@ export class Interpreter {
 
     private isValidRegister(input: string): input is Register {
         return Object.values(Registers).includes(input as Register);
+    }
+
+    private isValidPortOrRegister(input: string): Location {
+        if (this.isValidPort(input)) {
+            return {
+                type: "PORT",
+                location: Ports[input]
+            };
+        } else if (this.isValidRegister(input)) {
+            return {
+                type: "REGISTER",
+                location: Registers[input]
+            };
+        } else {
+            throw new InstructionSyntaxError(`${input} is not a valid location`);
+        }
     }
 
     private emptyNodeFactory(): EmptyState {

@@ -1,6 +1,6 @@
 import {Data} from "@/src/Interpreter"
 
-type Seed = number;
+export type Seed = number;
 
 export type NodeCoordinates = {
     x: number,
