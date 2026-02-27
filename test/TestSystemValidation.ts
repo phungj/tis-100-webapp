@@ -15,6 +15,7 @@ for (let i = 0; i < 5; i++) {
 
 interpreter.printNodes();
 
+// TODO: Implement literal handling for reading
 // TODO: Implement completed and wrong functions for interpreter
 // TODO: Completed returns true if done
 // TODO: Wrong returns indices of mismtaching values
