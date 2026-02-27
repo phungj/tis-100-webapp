@@ -14,3 +14,8 @@ for (let i = 0; i < 5; i++) {
 }
 
 interpreter.printNodes();
+
+// TODO: Implement completed and wrong functions for interpreter
+// TODO: Completed returns true if done
+// TODO: Wrong returns indices of mismtaching values
+// TODO: Implement a basic frontend from this
