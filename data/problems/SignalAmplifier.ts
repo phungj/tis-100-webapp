@@ -2,10 +2,12 @@ import {ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes
 import type {Seed} from "@/data/ProblemSpecificationTypes";
 import {GRID_HEIGHT, MIN_VALUE, MAX_VALUE, Data} from "@/src/Interpreter";
 
+// TODO: Stop exporting the individual components once you get loading in
+// TODO: Also review code warning and remove code warnings like unused code
 export const problemDescription: ProblemDescription = {
-    id: "system-validation",
-    title: "System Validation",
-    description: "Send the input to the output.",
+    id: "signal-amplifier",
+    title: "Signal Amplifier",
+    description: "Double each input value and output it.",
     seed: 31415,
     inputNodes: [{x: 0, y: 0}],
     inputs: [[[1, 2, 3, 4, 5]]],
@@ -13,8 +15,3 @@ export const problemDescription: ProblemDescription = {
     brokenNodes: [],
     stackNodes: []
 };
-
-export const problemLogic: ProblemLogic = {
-    generateInputs: (seed: Seed) => [Array.from({length: 5}, () => Math.floor(Math.random() * 1999) - 999)],
-    computeExpectedOutput: (input: Data[]) => input[0]
-}

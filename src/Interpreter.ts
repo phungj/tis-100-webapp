@@ -1,5 +1,6 @@
 import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
 import {IllegalArgumentError, InstructionSyntaxError, NotImplementedError} from "@/src/Errors";
+import {read} from "fs";
 
 export const GRID_WIDTH = 4;
 export const GRID_HEIGHT = 5;
@@ -9,21 +10,19 @@ export const MIN_VALUE = -999;
 export type Data = number[];
 type Pointer = number;
 
-// TODO: Do the typeof thing for this guy if possible and necessary?
-type NodeTypes = "EMPTY" | "INPUT" | "OUTPUT" | "COMPUTATION";
-
-type WithType<T extends NodeTypes> = {
+type WithType<T extends string> = {
     type: T
 };
 
 type EmptyState = WithType<"EMPTY">;
 
-type InputNodeState = WithType<"INPUT"> & {
+// TODO: Add a name to inputs and outputs so you can label them accordingly and have multiple
+export type InputNodeState = WithType<"INPUT"> & {
     data: Data,
     dataPointer: Pointer
 };
 
-type OutputNodeState = WithType<"OUTPUT"> & {
+export type OutputNodeState = WithType<"OUTPUT"> & {
     data: Data,
     expectedOutput: Data,
 };
@@ -53,6 +52,9 @@ type RegisterLocation = WithType<"REGISTER"> & {location: Register};
 type PortLocation = WithType<"PORT"> & {location: Port};
 type Location = RegisterLocation | PortLocation;
 
+type Literal = WithType<"LITERAL"> & {value: number};
+type Source = Literal | Location;
+
 const OppositePorts = {
     [Ports.UP]: Ports.DOWN,
     [Ports.DOWN]: Ports.UP,
@@ -78,7 +80,7 @@ const Instructions = {
     JRO: "JRO",
 } as const;
 
-type ComputationNodeState = WithType<"COMPUTATION"> & {
+export type ComputationNodeState = WithType<"COMPUTATION"> & {
     instructions: string[],
     instructionPointer: Pointer,
     acc: RegisterValue,
@@ -87,16 +89,23 @@ type ComputationNodeState = WithType<"COMPUTATION"> & {
     writePort: Port | null
 }
 
-type NodeState = InputNodeState | OutputNodeState | ComputationNodeState | EmptyState;
+export type NodeState = InputNodeState | OutputNodeState | ComputationNodeState | EmptyState;
 
+// TODO: Handle commas?
 export class Interpreter {
     private readonly nodes: NodeState[][];
+
+    private readonly problemDescription: ProblemDescription;
+    private readonly problemLogic: ProblemLogic;
 
     private testCaseIndex: number;
 
     // TODO: Implement the rest of the node initialization here as necessary
     constructor(problemDescription: ProblemDescription, problemLogic: ProblemLogic) {
         this.nodes = [];
+        this.problemDescription = problemDescription;
+        this.problemLogic = problemLogic;
+        this.testCaseIndex = 0;
 
         for (let i = 0; i < GRID_HEIGHT; i++) {
             let fillFunction;
@@ -106,6 +115,22 @@ export class Interpreter {
             this.nodes.push(Array.from({length: GRID_WIDTH}, () => fillFunction()));
         }
 
+        this.reset(problemDescription, problemLogic);
+    }
+
+    public step() {
+        for (let r = 1; r < this.nodes.length - 1; r++) {
+            for (let c = 0; c < this.nodes[0].length - 1; c++) {
+                const currentNode = this.nodes[r][c];
+
+                if (currentNode.type == "COMPUTATION") {
+                    this.executeInstruction(currentNode, {x: c, y: r});
+                }
+            }
+        }
+    }
+
+    public reset(problemDescription: ProblemDescription, problemLogic: ProblemLogic) {
         this.testCaseIndex = 0;
 
         const inputNodes = problemDescription.inputNodes;
@@ -134,32 +159,27 @@ export class Interpreter {
         }
     }
 
-    public step() {
-        for (let r = 1; r < this.nodes.length - 1; r++) {
-            for (let c = 0; c < this.nodes[0].length - 1; c++) {
-                const currentNode = this.nodes[r][c];
 
-                if (currentNode.type == "COMPUTATION") {
-                    this.executeInstruction(currentNode, {x: c, y: r});
+    public completed(): boolean {
+        for (const outputNode of this.problemDescription.outputNodes) {
+            const currentOutputNode = this.nodes[outputNode.y][outputNode.x];
+
+            if (currentOutputNode.type == "OUTPUT" && currentOutputNode.data.length !== currentOutputNode.expectedOutput.length) {
+                return false;
+            } else if (currentOutputNode.type == "OUTPUT") {
+                for (let i = 0; i < currentOutputNode.data.length; i++) {
+                    if (currentOutputNode.data[i] !== currentOutputNode.expectedOutput[i]) {
+                        return false;
+                    }
                 }
             }
         }
-    }
 
-
-    // TODO:
-    public reset() {
-
-    }
-
-    // tODO:
-    public completed() {
-
+        return true;
     }
 
     // TODO: Wrong function returns indices of mismtaching values
 
-    // tODO
     public updateInstructions({x, y}: NodeCoordinates, instructions: string[]) {
         const node = this.nodes[y][x];
 
@@ -192,8 +212,18 @@ export class Interpreter {
         }
     }
 
-    public getNodes(): NodeState[][] {
-        return this.nodes;
+    public getNodeSnapshot(): NodeState[][] {
+        return this.nodes.map(row => {
+            return row.map(node => structuredClone(node))
+        });
+    }
+
+    public getInputNodeCoordinates(): NodeCoordinates[] {
+        return this.problemDescription.inputNodes;
+    }
+
+    public getOutputNodeCoordinates(): NodeCoordinates[] {
+        return this.problemDescription.outputNodes;
     }
 
     private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
@@ -227,6 +257,15 @@ export class Interpreter {
                         this.executeMOV(node, {x, y}, instructionComponents);
                         break;
                     }
+                case (Instructions.ADD):
+                    const ADD_COMPONENT_LENGTH = 2;
+
+                    if(instructionComponentsLength !== ADD_COMPONENT_LENGTH) {
+                        throw new InstructionSyntaxError(`Instruction expects ${ADD_COMPONENT_LENGTH} but had ${instructionComponentsLength}`)
+                    } else {
+                        this.executeAdd(node, {x, y}, instructionComponents);
+                        break;
+                    }
                 default:
                     throw new InstructionSyntaxError(`Instruction ${opcode} not defined`);
             }
@@ -245,7 +284,7 @@ export class Interpreter {
             case Ports.LEFT:
                 return x === 0 ? null : this.nodes[y][x - 1];
             default:
-                throw new InstructionSyntaxError(`Port ${port} not defined`);
+                throw new IllegalArgumentError(`Port ${port} not defined`);
         }
     }
 
@@ -255,19 +294,32 @@ export class Interpreter {
 
     // TODO: Add additional node types here
     private executeMOV(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
-        const readData = this.executeRead(node, {x, y}, this.isValidPortOrRegister(instructionComponents[1]));
+        const readData = this.executeRead(node, {x, y}, this.isValidSource(instructionComponents[1]));
 
         if (readData) {
             this.executeWrite(node, {x, y}, this.isValidPortOrRegister(instructionComponents[2]), readData);
         }
     }
 
+    private executeAdd(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
+        const readData = this.executeRead(node, {x, y}, this.isValidSource(instructionComponents[1]));
+
+        if (readData) {
+            node.acc = this.clamp(readData + node.acc, MIN_VALUE, MAX_VALUE)
+            node.instructionPointer++;
+        }
+    }
+
+    private clamp(x, min, max) {
+        return Math.min(max, Math.max(min, x));
+    }
+
     // TODO: Write a function that updates the test case index accordingly
     // TODO: Figure out how to handle random test case generation
 
-    private executeRead(node: ComputationNodeState, {x, y}: NodeCoordinates, sourceLocation: Location): number | null {
-        if (sourceLocation.type === "PORT") {
-            const sourcePort = sourceLocation.location;
+    private executeRead(node: ComputationNodeState, {x, y}: NodeCoordinates, source: Source): number | null {
+        if (source.type === "PORT") {
+            const sourcePort = source.location;
             const sourceNode = this.getNeighborNode({x, y}, sourcePort);
 
             if (sourceNode && sourceNode.type == "INPUT") {
@@ -287,8 +339,8 @@ export class Interpreter {
             } else {
                 return null;
             }
-        } else {
-            switch (sourceLocation.location) {
+        } else if (source.type === "REGISTER") {
+            switch (source.location) {
                 case "ACC":
                     return node.acc;
                 case "BAK":
@@ -296,6 +348,8 @@ export class Interpreter {
                 case "NIL":
                     return 0;
             }
+        } else {
+            return source.value;
         }
     }
 
@@ -346,13 +400,29 @@ export class Interpreter {
                 location: Registers[input]
             };
         } else {
-            throw new InstructionSyntaxError(`${input} is not a valid location`);
+            throw new IllegalArgumentError(`${input} is not a valid location`);
         }
     }
 
+    private isValidInteger(input: string): Literal {
+        const n = Number(input);
 
-    private isValidInteger(input: string): number {
+        if (!Number.isInteger(n)) {
+            throw new IllegalArgumentError("Not an integer");
+        }
 
+        return {
+            type: "LITERAL",
+            value: n
+        };
+    }
+
+    private isValidSource(input: string): Source {
+        try {
+            return this.isValidInteger(input);
+        } catch (IllegalArgumentError) {
+            return this.isValidPortOrRegister(input);
+        }
     }
 
     private emptyNodeFactory(): EmptyState {
