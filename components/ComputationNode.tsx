@@ -47,7 +47,7 @@ export const ComputationNode = forwardRef<HTMLTextAreaElement, ComputationNodePr
                         <ComputationNodeItem name="ACC" value={computationNodeState.acc.toString()}/>
                         <ComputationNodeItem name="BAK" value={computationNodeState.bak.toString()}/>
                         <ComputationNodeItem name="LAST" value="N/A"/>
-                        <ComputationNodeItem name="IP" value={(computationNodeState.instructionPointer % computationNodeState.instructions.length).toString()}/>
+                        <ComputationNodeItem name="IP" value={computationNodeState.instructions.length === 0 ? "0" : (computationNodeState.instructionPointer % computationNodeState.instructions.length).toString()}/>
                         {/* TODO: <ComputationNodeItem name="MODE" value="N/A"/> */ null}
                         {/* TODO: <ComputationNodeItem name="IDLE" value="N/A"/> */ null}
                     </div>

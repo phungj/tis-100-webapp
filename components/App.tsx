@@ -57,7 +57,8 @@ export default function App({problems}: AppProps) {
 
     // TODO:
     function stopButtonHandler() {
-
+        interpreter.current!.reset();
+        setNodeState(interpreter.current!.getNodeSnapshot());
     }
 
     // TODO:

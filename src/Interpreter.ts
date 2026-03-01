@@ -115,14 +115,13 @@ export class Interpreter {
             this.nodes.push(Array.from({length: GRID_WIDTH}, () => fillFunction()));
         }
 
-        this.reset(problemDescription, problemLogic);
+        this.reset();
     }
 
     public step() {
+        // TODO: Replace with constants?
         for (let r = 1; r < this.nodes.length - 1; r++) {
             for (let c = 0; c < this.nodes[0].length; c++) {
-                console.log(r, c)
-
                 const currentNode = this.nodes[r][c];
 
                 if (currentNode.type == "COMPUTATION") {
@@ -132,13 +131,13 @@ export class Interpreter {
         }
     }
 
-    public reset(problemDescription: ProblemDescription, problemLogic: ProblemLogic) {
+    public reset() {
         this.testCaseIndex = 0;
 
-        const inputNodes = problemDescription.inputNodes;
-        const currentInputs = problemDescription.inputs[this.testCaseIndex];
+        const inputNodes = this.problemDescription.inputNodes;
+        const currentInputs = this.problemDescription.inputs[this.testCaseIndex];
 
-        for (let i = 0; i < problemDescription.inputNodes.length; i++) {
+        for (let i = 0; i < this.problemDescription.inputNodes.length; i++) {
             const inputNode = inputNodes[i];
 
             this.nodes[inputNode.y][inputNode.x] = {
@@ -148,17 +147,49 @@ export class Interpreter {
             };
         }
 
-        const outputNodes = problemDescription.outputNodes;
+        const outputNodes = this.problemDescription.outputNodes;
 
-        for (let i = 0; i < problemDescription.outputNodes.length; i++) {
+        for (let i = 0; i < this.problemDescription.outputNodes.length; i++) {
             const outputNode = outputNodes[i];
 
             this.nodes[outputNode.y][outputNode.x] = {
                 type: "OUTPUT",
                 data: [],
-                expectedOutput: problemLogic.computeExpectedOutput(currentInputs, i),
+                expectedOutput: this.problemLogic.computeExpectedOutput(currentInputs, i),
             };
         }
+
+        const computationNodes = this.getComputationNodeCoordinates();
+
+        for (const computationNodeCoordinates of computationNodes) {
+            const currentComputationNode = this.nodes[computationNodeCoordinates.y][computationNodeCoordinates.x];
+
+            if (currentComputationNode.type === "COMPUTATION") {
+                this.nodes[computationNodeCoordinates.y][computationNodeCoordinates.x] = {
+                    ...currentComputationNode,
+                    instructionPointer: 0,
+                    acc: 0,
+                    bak: 0,
+                    writeValue: null,
+                    writePort: null
+                }
+            }
+        }
+    }
+
+    // TODO: Use this method when appropriate in the app
+    public getComputationNodeCoordinates(): NodeCoordinates[] {
+        const nodeCoordinates = []
+
+        for (let y = 1; y < GRID_HEIGHT - 1; y++) {
+            for (let x = 0; x < GRID_WIDTH; x++) {
+                if (this.nodes[y][x].type === "COMPUTATION") {
+                    nodeCoordinates.push({x: x, y: y})
+                }
+            }
+        }
+
+        return nodeCoordinates;
     }
 
 
