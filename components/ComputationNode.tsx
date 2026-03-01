@@ -34,7 +34,6 @@ export const ComputationNode = forwardRef<HTMLTextAreaElement, ComputationNodePr
 
         // TODO: Get the header centered
         // TODO: Try codemirror integration
-        // TODO: Try basic highlighting function
         return (
             <div>
                 {hasInput ? <h1 className="font-title text-heading text-2xl font-bold text-center">Input</h1> : null}
