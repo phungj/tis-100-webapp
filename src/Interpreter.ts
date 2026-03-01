@@ -120,7 +120,9 @@ export class Interpreter {
 
     public step() {
         for (let r = 1; r < this.nodes.length - 1; r++) {
-            for (let c = 0; c < this.nodes[0].length - 1; c++) {
+            for (let c = 0; c < this.nodes[0].length; c++) {
+                console.log(r, c)
+
                 const currentNode = this.nodes[r][c];
 
                 if (currentNode.type == "COMPUTATION") {
@@ -191,25 +193,29 @@ export class Interpreter {
     }
 
     public printNodes() {
+        let outputString = "";
+
         for (const row of this.nodes) {
             for (const node of row) {
                 switch (node.type) {
                     case "EMPTY":
-                        process.stdout.write("EMPTY ");
+                        outputString += "EMPTY "
                         break;
                     case "INPUT":
-                        process.stdout.write(`INPUT: ${node.data}, ${node.dataPointer} `);
+                        outputString += `INPUT: ${node.data}, ${node.dataPointer} `
                         break;
                     case "OUTPUT":
-                        process.stdout.write(`OUTPUT: ${node.data}, ${node.expectedOutput} `);
+                        outputString += `OUTPUT: ${node.data}, ${node.expectedOutput} `
                         break;
                     case "COMPUTATION":
-                        process.stdout.write(`COMPUTATION: ${node.instructions}, ${node.instructionPointer} `);
+                        outputString += `COMPUTATION: ${node.instructions}, ${node.instructionPointer} `
                 }
             }
 
-            console.log()
+            outputString += "\n";
         }
+
+        console.log(outputString);
     }
 
     public getNodeSnapshot(): NodeState[][] {

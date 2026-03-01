@@ -6,6 +6,7 @@ import {GRID_HEIGHT, MIN_VALUE, MAX_VALUE, Data} from "@/src/Interpreter";
 // TODO: Also review code warning and remove code warnings like unused code
 export const problemDescription: ProblemDescription = {
     id: "signal-amplifier",
+    order: 1,
     title: "Signal Amplifier",
     description: "Double each input value and output it.",
     seed: 31415,

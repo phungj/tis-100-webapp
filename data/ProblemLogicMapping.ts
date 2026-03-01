@@ -15,6 +15,12 @@ export function getProblemLogic(problemID: string): ProblemLogic {
                 generateInputs: (seed: Seed) => [Array.from({length: 5}, () => Math.floor(Math.random() * 999) - 499)],
                 computeExpectedOutput: (input: Data[], outputIndex) => input[0].map(n => n * 2)
             }
+        case "differential-converter":
+            // TODO:
+            return {
+                generateInputs: (seed: Seed) => [[]],
+                computeExpectedOutput: (input: Data[], outputIndex) => input[0].map(outputIndex == 0 ? (x, i) => x - input[1][i] : (x, i) => input[1][i] - x)
+            }
         default:
             throw new IllegalArgumentError(`Problem with ID ${problemID} not found`);
     }

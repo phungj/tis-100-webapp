@@ -24,22 +24,22 @@ export default function App({problems}: AppProps) {
     const [displayProblemList, setDisplayProblemList] = useState<boolean>(true);
 
     if (displayProblemList) {
-        return <ProblemList problems={problems} loadProblem={loadProblem}/>;
+        return <ProblemList problems={problems.sort((p1, p2) => p1.order - p2.order)} loadProblem={loadProblem}/>;
     } else {
         // TODO: This will need to be updated for a variety of nodes that can be displayed
         // TODO: Update the computation nodes with refs so you can get their values accordingly
         // TODO: Update to handle named and multiple inputs
-        const inputNodeCoordinates = interpreter.current?.getInputNodeCoordinates();
-        const inputNodeColumns = inputNodeCoordinates?.map(({x, y}) => x);
+        const inputNodeCoordinates = interpreter.current!.getInputNodeCoordinates();
+        const inputNodeColumns = inputNodeCoordinates.map(({x, y}) => x);
 
-        const outputNodeCoordinates = interpreter.current?.getOutputNodeCoordinates();
-        const outputNodeColumns = outputNodeCoordinates?.map(({x, y}) => x);
+        const outputNodeCoordinates = interpreter.current!.getOutputNodeCoordinates();
+        const outputNodeColumns = outputNodeCoordinates.map(({x, y}) => x);
 
         const computationNodes = nodeState.slice(1, 4);
 
         return (
             <div className="flex flex-row">
-                <Sidebar problemDescription={problemDescriptionRef.current} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
+                <Sidebar problemDescription={problemDescriptionRef.current!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
                 <div className="grid grid-cols-4 grid-rows-3 w-full h-screen">
                     {computationNodes.flat().map((node, i) => <ComputationNode key={i} ref={el => textAreaRefs.current[i] = el} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)}/>)}
                 </div>
@@ -50,7 +50,7 @@ export default function App({problems}: AppProps) {
     function loadProblem(problemDescription: ProblemDescription) {
         problemDescriptionRef.current = problemDescription;
         interpreter.current = new Interpreter(problemDescription, getProblemLogic(problemDescription.id));
-        setNodeState(interpreter.current.getNodeSnapshot());
+        setNodeState(interpreter.current!.getNodeSnapshot());
 
         setDisplayProblemList(false);
     }
@@ -75,10 +75,10 @@ export default function App({problems}: AppProps) {
         }
 
         // tTODO: Catch any exceptions here and then display a dialog
-        interpreter.current?.step();
-        setNodeState(interpreter.current?.getNodeSnapshot());
+        interpreter.current!.step();
+        setNodeState(interpreter.current!.getNodeSnapshot());
 
-        if (interpreter.current?.completed()) {
+        if (interpreter.current!.completed()) {
             // TODO: Update this with a modal of some sort
             console.log("Win");
         }

@@ -9,7 +9,8 @@ export type NodeCoordinates = {
 
 // TODO: Figure out how the random tests should work, whether they should have a constant number or be specified
 export type ProblemDescription = {
-    id: string
+    id: string,
+    order: number,
     title: string,
     description: string,
     seed: Seed,
