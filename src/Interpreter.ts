@@ -219,7 +219,7 @@ export class Interpreter {
         if (node.type == "COMPUTATION") {
             node.instructions = instructions;
         } else {
-            throw new IllegalArgumentError(`Node with coordinates ${x}, ${y} is not a computation node`);
+            throw new IllegalArgumentError(`Node at row ${y}, col ${x} is not a computation node.  If you see this, please report to Jon.`, {x, y}, 0);
         }
     }
 
@@ -297,12 +297,16 @@ export class Interpreter {
                 case (Instructions.ADD):
                     const ADD_COMPONENT_LENGTH = 2;
 
-                    if(instructionComponentsLength !== ADD_COMPONENT_LENGTH) {
+                    if (instructionComponentsLength !== ADD_COMPONENT_LENGTH) {
                         throw new InstructionSyntaxError(`Instruction expects ${ADD_COMPONENT_LENGTH} but had ${instructionComponentsLength}`)
                     } else {
                         this.executeAdd(node, {x, y}, instructionComponents);
                         break;
                     }
+                case (Instructions.SUB):
+                    const SUB_COMPONENT_LENGTH = 2;
+
+                    // TODO: if (instructionComponentsLength !== SUB_COMPONENT_LENGTH)
                 default:
                     throw new InstructionSyntaxError(`Instruction ${opcode} not defined`);
             }

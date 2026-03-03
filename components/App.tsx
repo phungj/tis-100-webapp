@@ -7,6 +7,7 @@ import ProblemList from "@/components/ProblemList";
 import {getProblemLogic} from "@/data/ProblemLogicMapping";
 import {ComputationNode} from "@/components/ComputationNode";
 import Sidebar from "@/components/Sidebar";
+import CompletionDialog from "@/components/CompletionDialog";
 
 type AppProps = {
     problems: ProblemDescription[];
@@ -22,6 +23,7 @@ export default function App({problems}: AppProps) {
     const textAreaRefs = useRef<HTMLTextAreaElement[]>([]);
 
     const [displayProblemList, setDisplayProblemList] = useState<boolean>(true);
+    const [completed, setCompleted] = useState<boolean>(false);
 
     if (displayProblemList) {
         return <ProblemList problems={problems.sort((p1, p2) => p1.order - p2.order)} loadProblem={loadProblem}/>;
@@ -39,6 +41,7 @@ export default function App({problems}: AppProps) {
 
         return (
             <div className="flex flex-row">
+                <CompletionDialog completed={completed}/>
                 <Sidebar problemDescription={problemDescriptionRef.current!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
                 <div className="grid grid-cols-4 grid-rows-3 w-full h-screen">
                     {computationNodes.flat().map((node, i) => <ComputationNode key={i} ref={el => textAreaRefs.current[i] = el} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)}/>)}
@@ -53,6 +56,7 @@ export default function App({problems}: AppProps) {
         setNodeState(interpreter.current!.getNodeSnapshot());
 
         setDisplayProblemList(false);
+        setCompleted(false);
     }
 
     // TODO:
@@ -80,8 +84,7 @@ export default function App({problems}: AppProps) {
         setNodeState(interpreter.current!.getNodeSnapshot());
 
         if (interpreter.current!.completed()) {
-            // TODO: Update this with a modal of some sort
-            console.log("Win");
+            setCompleted(true);
         }
 
         // TODO: Determine how to handle interaction from here, possibly just disable everything for now?
