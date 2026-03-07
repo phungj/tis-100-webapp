@@ -1,5 +1,5 @@
 import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
-import {IllegalArgumentError, InstructionSyntaxError, NotImplementedError} from "@/src/Errors";
+import {TISIllegalArgumentError, InstructionSyntaxError, NotImplementedError} from "@/src/Errors";
 
 export const GRID_WIDTH = 4;
 export const GRID_HEIGHT = 5;
@@ -218,7 +218,7 @@ export class Interpreter {
         if (node.type == "COMPUTATION") {
             node.instructions = instructions;
         } else {
-            throw new IllegalArgumentError(`Node at row ${y}, col ${x} is not a computation node.  If you see this, please report to Jon.`, {x, y}, 0);
+            throw new TISIllegalArgumentError(`Node at row ${y}, col ${x} is not a computation node.  If you see this, please report to Jon.`, {x, y}, 0);
         }
     }
 
@@ -329,7 +329,7 @@ export class Interpreter {
             case Ports.LEFT:
                 return x === 0 ? null : this.nodes[y][x - 1];
             default:
-                throw new IllegalArgumentError(`Port ${port} not defined`, {x, y}, node.instructionPointer);
+                throw new TISIllegalArgumentError(`Port ${port} not defined`, {x, y}, node.instructionPointer);
         }
     }
 
@@ -364,7 +364,7 @@ export class Interpreter {
         }
     }
 
-    private clamp(x, min, max) {
+    private clamp(x: number, min: number, max: number): number {
         return Math.min(max, Math.max(min, x));
     }
 
@@ -398,7 +398,7 @@ export class Interpreter {
                 case "ACC":
                     return node.acc;
                 case "BAK":
-                    throw new IllegalArgumentError("BAK cannot be directly read", {x, y}, node.instructionPointer);
+                    throw new TISIllegalArgumentError("BAK cannot be directly read", {x, y}, node.instructionPointer);
                 case "NIL":
                     return 0;
             }
@@ -425,7 +425,7 @@ export class Interpreter {
                     node.acc = writeData;
                     break;
                 case "BAK":
-                    throw new IllegalArgumentError("BAK cannot be directly written", {x, y}, node.instructionPointer);
+                    throw new TISIllegalArgumentError("BAK cannot be directly written", {x, y}, node.instructionPointer);
                 case "NIL":
                     break;
             }
@@ -454,7 +454,7 @@ export class Interpreter {
                 location: Registers[input]
             };
         } else {
-            throw new IllegalArgumentError(`${input} is not a valid location`, {x, y}, node.instructionPointer);
+            throw new TISIllegalArgumentError(`${input} is not a valid location`, {x, y}, node.instructionPointer);
         }
     }
 
@@ -462,7 +462,7 @@ export class Interpreter {
         const n = Number(input);
 
         if (!Number.isInteger(n)) {
-            throw new IllegalArgumentError(`${input} was not an integer`, {x, y}, node.instructionPointer);
+            throw new TISIllegalArgumentError(`${input} was not an integer`, {x, y}, node.instructionPointer);
         }
 
         return {

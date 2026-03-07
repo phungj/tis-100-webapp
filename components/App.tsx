@@ -1,7 +1,7 @@
 "use client";
 
 import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
-import {useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {ComputationNodeState, GRID_HEIGHT, GRID_WIDTH, InputNodeState, Interpreter, NodeState} from "@/src/Interpreter";
 import ProblemList from "@/components/ProblemList";
 import {getProblemLogic} from "@/data/ProblemLogicMapping";
@@ -10,7 +10,8 @@ import CompletionDialog from "@/components/CompletionDialog";
 import ErrorDialog from "@/components/ErrorDialog";
 import {TISError} from "@/src/Errors";
 import Navbar from "@/components/Navbar";
-import ComputationNode from "@/components/ComputationNode";
+import { ComputationNode } from "@/components/ComputationNode";
+import {bool} from "sharp";
 
 const SAVE_PREFIX = "tis-100/";
 
@@ -20,12 +21,15 @@ type AppProps = {
 
 // TODO: Further styling
 export default function App({problems}: AppProps) {
+    const [mounted, setMounted] = useState<boolean>(false);
+
+    const [save, setSave] = useState<string[]>([]);
+
     const [problemDescription, setProblemDescription] = useState<ProblemDescription | null>(null);
     const interpreter = useRef<Interpreter | null>(null);
     const [nodeState, setNodeState] = useState<NodeState[][]>([]);
 
-    // TODO: Redo this with ref forwarding now that you need to load save files
-    const instructionValuesRef = useRef<string[]>(Array.from({length: GRID_WIDTH * (GRID_HEIGHT - 2)}, () => ""));
+    const textAreaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
     const [displayProblemList, setDisplayProblemList] = useState<boolean>(true);
     const [completed, setCompleted] = useState<boolean>(false);
@@ -35,7 +39,27 @@ export default function App({problems}: AppProps) {
 
     const [running, setRunning] = useState(false);
 
-    if (displayProblemList) {
+    useEffect(() => setMounted(true), []);
+
+    useEffect(() => {
+        if (save.length > 0) {
+            // TODO: Refactor this into a function?
+            for (let y = 1; y < GRID_HEIGHT - 1; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const currentNodeIndex = (y - 1) * GRID_WIDTH + x;
+                    const currentInstructions = save[currentNodeIndex].trim();
+
+                    interpreter.current?.updateInstructions({x, y}, currentInstructions === "" ? [] : currentInstructions.split("\n"));
+
+                    textAreaRefs.current[currentNodeIndex]!.value = currentInstructions;
+                }
+            }
+        }
+    }, [save]);
+
+    if (!mounted) {
+        return null;
+    } else if (displayProblemList) {
         return <ProblemList problems={problems.sort((p1, p2) => p1.order - p2.order)} loadProblem={loadProblem}/>;
     } else {
         // TODO: This will need to be updated for a variety of nodes that can be displayed
@@ -57,7 +81,7 @@ export default function App({problems}: AppProps) {
                 <div className="flex flex-row">
                     <Sidebar problemDescription={problemDescription!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
                     <div className="grid grid-cols-4 grid-rows-3 w-full h-screen">
-                        {computationNodes.flat().map((node, i) => <ComputationNode key={i} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)} running={running} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>)}
+                        {computationNodes.flat().map((node, i) => <ComputationNode key={i} ref={el => {textAreaRefs.current[i] = el}} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)} running={running} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>)}
                     </div>
                 </div>
             </div>
@@ -72,16 +96,7 @@ export default function App({problems}: AppProps) {
 
         if (save) {
             const parsedSave = JSON.parse(save);
-
-            // TODO: Update this accordingly
-            // TODO: Refactor this into a function
-            for (let y = 1; y < GRID_HEIGHT - 1; y++) {
-                for (let x = 0; x < GRID_WIDTH; x++) {
-                    const currentInput = parsedSave[(y - 1) * GRID_WIDTH + x].trim();
-
-                    interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.split("\n"));
-                }
-            }
+            setSave(parsedSave);
         }
 
         setNodeState(interpreter.current!.getNodeSnapshot());
@@ -92,6 +107,7 @@ export default function App({problems}: AppProps) {
 
     function homeButtonHandler() {
         setDisplayProblemList(true);
+        setRunning(false);
     }
 
     // TODO:
@@ -112,7 +128,7 @@ export default function App({problems}: AppProps) {
     function stepButtonHandler() {
         for (let y = 1; y < GRID_HEIGHT - 1; y++) {
             for (let x = 0; x < GRID_WIDTH; x++) {
-                const currentInput = instructionValuesRef.current[(y - 1) * GRID_WIDTH + x].trim();
+                const currentInput = textAreaRefs.current[(y - 1) * GRID_WIDTH + x]!.value.trim();
 
                 interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.split("\n"));
             }
@@ -145,9 +161,7 @@ export default function App({problems}: AppProps) {
 
     function instructionChangeHandlerFactory(i: number): (instructions: string) => void {
         return (instructions: string) => {
-            instructionValuesRef.current[i] = instructions.trim();
-
-            localStorage.setItem(SAVE_PREFIX + problemDescription?.id, JSON.stringify(instructionValuesRef.current));
+            localStorage.setItem(SAVE_PREFIX + problemDescription?.id, JSON.stringify(textAreaRefs.current.map(textArea => textArea!.value)));
         }
     }
 }

@@ -1,5 +1,11 @@
 import {NodeCoordinates} from "@/data/ProblemSpecificationTypes";
 
+export class IllegalArgumentError extends Error {
+    constructor(message: string) {
+        super(message);
+    }
+}
+
 export class TISError extends Error {
     constructor(message: string, {x, y}: NodeCoordinates, lineNumber: number) {
         const errorMessage = `Node in row ${y}, col ${x}\nLine ${lineNumber}\n${message}`
@@ -14,7 +20,7 @@ export class InstructionSyntaxError extends TISError {
     }
 }
 
-export class IllegalArgumentError extends TISError {
+export class TISIllegalArgumentError extends TISError {
     constructor(message: string, {x, y}: NodeCoordinates, lineNumber: number) {
         super(message, {x, y}, lineNumber);
     }

@@ -22,6 +22,6 @@ export function getProblemLogic(problemID: string): ProblemLogic {
                 computeExpectedOutput: (input: Data[], outputIndex) => input[0].map(outputIndex == 0 ? (x, i) => x - input[1][i] : (x, i) => input[1][i] - x)
             }
         default:
-            throw new IllegalArgumentError(`Problem with ID ${problemID} not found`);
+            throw new IllegalArgumentError(`Problem with ID ${problemID} not found.  If you see this, please tell Jon!`);
     }
 }
