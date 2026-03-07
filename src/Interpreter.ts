@@ -1,6 +1,5 @@
 import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
 import {IllegalArgumentError, InstructionSyntaxError, NotImplementedError} from "@/src/Errors";
-import {read} from "fs";
 
 export const GRID_WIDTH = 4;
 export const GRID_HEIGHT = 5;
@@ -280,7 +279,7 @@ export class Interpreter {
                     const NOP_COMPONENT_LENGTH = 1;
 
                     if (instructionComponentsLength !== NOP_COMPONENT_LENGTH) {
-                        throw new InstructionSyntaxError(`Instruction expects ${NOP_COMPONENT_LENGTH} component but had ${instructionComponentsLength}`);
+                        throw new InstructionSyntaxError(`NOP instruction expects ${NOP_COMPONENT_LENGTH} component but had ${instructionComponentsLength}`, {x, y}, node.instructionPointer);
                     } else {
                         this.executeNOP(node);
                         break;
@@ -289,7 +288,7 @@ export class Interpreter {
                     const MOV_COMPONENT_LENGTH = 3;
 
                     if (instructionComponentsLength !== MOV_COMPONENT_LENGTH) {
-                        throw new InstructionSyntaxError(`Instruction expects ${MOV_COMPONENT_LENGTH} component but had ${instructionComponentsLength}`);
+                        throw new InstructionSyntaxError(`MOV instruction expects ${MOV_COMPONENT_LENGTH} components but had ${instructionComponentsLength}`, {x, y}, node.instructionPointer);
                     } else {
                         this.executeMOV(node, {x, y}, instructionComponents);
                         break;
@@ -298,23 +297,28 @@ export class Interpreter {
                     const ADD_COMPONENT_LENGTH = 2;
 
                     if (instructionComponentsLength !== ADD_COMPONENT_LENGTH) {
-                        throw new InstructionSyntaxError(`Instruction expects ${ADD_COMPONENT_LENGTH} but had ${instructionComponentsLength}`)
+                        throw new InstructionSyntaxError(`ADD instruction expects ${ADD_COMPONENT_LENGTH} components but had ${instructionComponentsLength}`, {x, y}, node.instructionPointer);
                     } else {
-                        this.executeAdd(node, {x, y}, instructionComponents);
+                        this.executeADD(node, {x, y}, instructionComponents);
                         break;
                     }
                 case (Instructions.SUB):
                     const SUB_COMPONENT_LENGTH = 2;
 
-                    // TODO: if (instructionComponentsLength !== SUB_COMPONENT_LENGTH)
+                    if (instructionComponentsLength !== SUB_COMPONENT_LENGTH) {
+                        throw new InstructionSyntaxError(`SUB instruction expects ${SUB_COMPONENT_LENGTH} components but had ${instructionComponentsLength}`, {x, y}, node.instructionPointer);
+                    } else {
+                        this.executeSUB(node, {x, y}, instructionComponents);
+                        break;
+                    }
                 default:
-                    throw new InstructionSyntaxError(`Instruction ${opcode} not defined`);
+                    throw new InstructionSyntaxError(`Instruction ${opcode} not defined`, {x, y}, node.instructionPointer);
             }
         }
     }
 
     // TODO: Implement rest of ports here
-    private getNeighborNode({x, y}: NodeCoordinates, port: Port): NodeState | null {
+    private getNeighborNode(node: ComputationNodeState, {x, y}: NodeCoordinates, port: Port): NodeState | null {
         switch (port) {
             case Ports.UP:
                 return y === GRID_HEIGHT - 1 ? null : this.nodes[y - 1][x];
@@ -325,7 +329,7 @@ export class Interpreter {
             case Ports.LEFT:
                 return x === 0 ? null : this.nodes[y][x - 1];
             default:
-                throw new IllegalArgumentError(`Port ${port} not defined`);
+                throw new IllegalArgumentError(`Port ${port} not defined`, {x, y}, node.instructionPointer);
         }
     }
 
@@ -335,18 +339,27 @@ export class Interpreter {
 
     // TODO: Add additional node types here
     private executeMOV(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
-        const readData = this.executeRead(node, {x, y}, this.isValidSource(instructionComponents[1]));
+        const readData = this.executeRead(node, {x, y}, this.isValidSource(node, {x, y}, instructionComponents[1]));
 
         if (readData) {
-            this.executeWrite(node, {x, y}, this.isValidPortOrRegister(instructionComponents[2]), readData);
+            this.executeWrite(node, {x, y}, this.isValidPortOrRegister(node, {x, y}, instructionComponents[2]), this.clamp(readData, MIN_VALUE, MAX_VALUE));
         }
     }
 
-    private executeAdd(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
-        const readData = this.executeRead(node, {x, y}, this.isValidSource(instructionComponents[1]));
+    private executeADD(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
+        const readData = this.executeRead(node, {x, y}, this.isValidSource(node, {x, y}, instructionComponents[1]));
 
         if (readData) {
-            node.acc = this.clamp(readData + node.acc, MIN_VALUE, MAX_VALUE)
+            node.acc = this.clamp(node.acc + readData, MIN_VALUE, MAX_VALUE);
+            node.instructionPointer++;
+        }
+    }
+
+    private executeSUB(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
+        const readData = this.executeRead(node, {x, y}, this.isValidSource(node, {x, y}, instructionComponents[1]));
+
+        if (readData) {
+            node.acc = this.clamp(node.acc - readData, MIN_VALUE, MAX_VALUE);
             node.instructionPointer++;
         }
     }
@@ -361,7 +374,7 @@ export class Interpreter {
     private executeRead(node: ComputationNodeState, {x, y}: NodeCoordinates, source: Source): number | null {
         if (source.type === "PORT") {
             const sourcePort = source.location;
-            const sourceNode = this.getNeighborNode({x, y}, sourcePort);
+            const sourceNode = this.getNeighborNode(node, {x, y}, sourcePort);
 
             if (sourceNode && sourceNode.type == "INPUT") {
                 const readData = sourceNode.data[sourceNode.dataPointer];
@@ -385,7 +398,7 @@ export class Interpreter {
                 case "ACC":
                     return node.acc;
                 case "BAK":
-                    throw new IllegalArgumentError("BAK cannot be directly read");
+                    throw new IllegalArgumentError("BAK cannot be directly read", {x, y}, node.instructionPointer);
                 case "NIL":
                     return 0;
             }
@@ -396,7 +409,7 @@ export class Interpreter {
 
     private executeWrite(node: ComputationNodeState, {x, y}: NodeCoordinates, destinationLocation: Location, writeData: number) {
         if (destinationLocation.type === "PORT") {
-            const destinationNode = this.getNeighborNode({x, y}, destinationLocation.location);
+            const destinationNode = this.getNeighborNode(node, {x, y}, destinationLocation.location);
 
             if (destinationNode && destinationNode.type == "OUTPUT") {
                 destinationNode.data.push(writeData);
@@ -412,7 +425,7 @@ export class Interpreter {
                     node.acc = writeData;
                     break;
                 case "BAK":
-                    throw new IllegalArgumentError("BAK cannot be directly written");
+                    throw new IllegalArgumentError("BAK cannot be directly written", {x, y}, node.instructionPointer);
                 case "NIL":
                     break;
             }
@@ -429,7 +442,7 @@ export class Interpreter {
         return Object.values(Registers).includes(input as Register);
     }
 
-    private isValidPortOrRegister(input: string): Location {
+    private isValidPortOrRegister(node: ComputationNodeState, {x, y}: NodeCoordinates, input: string): Location {
         if (this.isValidPort(input)) {
             return {
                 type: "PORT",
@@ -441,15 +454,15 @@ export class Interpreter {
                 location: Registers[input]
             };
         } else {
-            throw new IllegalArgumentError(`${input} is not a valid location`);
+            throw new IllegalArgumentError(`${input} is not a valid location`, {x, y}, node.instructionPointer);
         }
     }
 
-    private isValidInteger(input: string): Literal {
+    private isValidInteger(node: ComputationNodeState, {x, y}: NodeCoordinates,input: string): Literal {
         const n = Number(input);
 
         if (!Number.isInteger(n)) {
-            throw new IllegalArgumentError("Not an integer");
+            throw new IllegalArgumentError(`${input} was not an integer`, {x, y}, node.instructionPointer);
         }
 
         return {
@@ -458,11 +471,11 @@ export class Interpreter {
         };
     }
 
-    private isValidSource(input: string): Source {
+    private isValidSource(node: ComputationNodeState, {x, y}: NodeCoordinates,input: string): Source {
         try {
-            return this.isValidInteger(input);
+            return this.isValidInteger(node, {x, y}, input);
         } catch (IllegalArgumentError) {
-            return this.isValidPortOrRegister(input);
+            return this.isValidPortOrRegister(node, {x, y}, input);
         }
     }
 

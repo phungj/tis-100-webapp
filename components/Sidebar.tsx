@@ -4,6 +4,8 @@ import OutputNode from "@/components/OutputNode";
 import {NodeCoordinates} from "@/data/ProblemSpecificationTypes";
 import ProblemDescriptionComponent from "@/components/ProblemDescriptionComponent";
 import {InputNodeState, NodeState, OutputNodeState} from "@/src/Interpreter";
+import {faForwardFast, faForwardStep, faPlay, faStop} from "@fortawesome/free-solid-svg-icons";
+import SidebarButton from "@/components/SidebarButton";
 
 type SidebarProps = {
     problemDescription: ProblemDescription,
@@ -27,10 +29,10 @@ export default function Sidebar({problemDescription, inputNodeCoordinates, outpu
                 {outputNodeCoordinates.map(({x, y}, i) => <OutputNode key={i} outputNodeState={nodeState[y][x] as OutputNodeState}/>)}
             </div>
             <span className="flex flex-row">
-                <button onClick={stopButtonHandler}>Stop</button>
-                <button onClick={playButtonHandler}>Play</button>
-                <button onClick={stepButtonHandler}>Step</button>
-                <button onClick={fastButtonHandler}>Fast</button>
+                <SidebarButton icon={faStop} label="Stop" onClick={stopButtonHandler}/>
+                <SidebarButton icon={faPlay} label="Play" onClick={playButtonHandler}/>
+                <SidebarButton icon={faForwardStep} label="Step" onClick={stepButtonHandler}/>
+                <SidebarButton icon={faForwardFast} label="Fast" onClick={fastButtonHandler}/>
             </span>
         </div>
     )
