@@ -10,8 +10,10 @@ import CompletionDialog from "@/components/CompletionDialog";
 import ErrorDialog from "@/components/ErrorDialog";
 import {TISError} from "@/src/Errors";
 import Navbar from "@/components/Navbar";
-import { ComputationNode } from "@/components/ComputationNode";
-import {bool} from "sharp";
+import ComputationNode from "@/components/ComputationNode";
+
+export const MAX_LINES = 15;
+export const MAX_CHARS_PER_LINE = 18;
 
 const SAVE_PREFIX = "tis-100/";
 
@@ -29,7 +31,7 @@ export default function App({problems}: AppProps) {
     const interpreter = useRef<Interpreter | null>(null);
     const [nodeState, setNodeState] = useState<NodeState[][]>([]);
 
-    const textAreaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+    const [instructionValues, setInstructionValues] = useState<string[]>(Array.from({length: GRID_WIDTH * (GRID_HEIGHT - 2)}, () => ""));
 
     const [displayProblemList, setDisplayProblemList] = useState<boolean>(true);
     const [completed, setCompleted] = useState<boolean>(false);
@@ -50,12 +52,16 @@ export default function App({problems}: AppProps) {
                     const currentInstructions = save[currentNodeIndex].trim();
 
                     interpreter.current?.updateInstructions({x, y}, currentInstructions === "" ? [] : currentInstructions.split("\n"));
-
-                    textAreaRefs.current[currentNodeIndex]!.value = currentInstructions;
                 }
             }
+
+            setInstructionValues(save);
         }
     }, [save]);
+
+    useEffect(() => {
+        localStorage.setItem(SAVE_PREFIX + problemDescription?.id, JSON.stringify(instructionValues));
+    }, [instructionValues]);
 
     if (!mounted) {
         return null;
@@ -76,12 +82,12 @@ export default function App({problems}: AppProps) {
         return (
             <div>
                 <CompletionDialog completed={completed}/>
-                <ErrorDialog stopButtonHandler={stopButtonHandler} errored={errored} message={errorMessage}/>
+                <ErrorDialog stopButtonHandler={errorButtonHandler} errored={errored} message={errorMessage}/>
                 <Navbar homeButtonHandler={homeButtonHandler}/>
                 <div className="flex flex-row">
                     <Sidebar problemDescription={problemDescription!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
                     <div className="grid grid-cols-4 grid-rows-3 w-full h-screen">
-                        {computationNodes.flat().map((node, i) => <ComputationNode key={i} ref={el => {textAreaRefs.current[i] = el}} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)} running={running} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>)}
+                        {computationNodes.flat().map((node, i) => <ComputationNode key={i} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)} running={running} code={instructionValues[i]} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>)}
                     </div>
                 </div>
             </div>
@@ -128,9 +134,9 @@ export default function App({problems}: AppProps) {
     function stepButtonHandler() {
         for (let y = 1; y < GRID_HEIGHT - 1; y++) {
             for (let x = 0; x < GRID_WIDTH; x++) {
-                const currentInput = textAreaRefs.current[(y - 1) * GRID_WIDTH + x]!.value.trim();
+                const currentInput = instructionValues[(y - 1) * GRID_WIDTH + x]!.trim();
 
-                interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.split("\n"));
+                interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.toUpperCase().split("\n"));
             }
         }
 
@@ -159,9 +165,30 @@ export default function App({problems}: AppProps) {
         // TODO: Setinterval here but really fast
     }
 
-    function instructionChangeHandlerFactory(i: number): (instructions: string) => void {
-        return (instructions: string) => {
-            localStorage.setItem(SAVE_PREFIX + problemDescription?.id, JSON.stringify(textAreaRefs.current.map(textArea => textArea!.value)));
+    function errorButtonHandler() {
+        setErrored(false);
+    }
+
+    function instructionChangeHandlerFactory(i: number): (e: React.ChangeEvent<HTMLTextAreaElement>) => void {
+        return (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+            const currentCode = e.target.value;
+            const lines = currentCode.split("\n");
+
+            if (lines.length > MAX_LINES) {
+                return;
+            }
+
+            for (const line of lines) {
+                if (line.length > MAX_CHARS_PER_LINE) {
+                    return;
+                }
+            }
+
+            setInstructionValues(prev => {
+                const next = [...prev];
+                next[i] = currentCode;
+                return next;
+            });
         }
     }
 }
