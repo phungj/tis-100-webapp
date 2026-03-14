@@ -1,5 +1,7 @@
 import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
 import {TISIllegalArgumentError, InstructionSyntaxError, NotImplementedError} from "@/src/Errors";
+import Errors from "undici-types/errors";
+import InvalidArgumentError = Errors.InvalidArgumentError;
 
 export const GRID_WIDTH = 4;
 export const GRID_HEIGHT = 5;
@@ -52,7 +54,7 @@ type PortLocation = WithType<"PORT"> & {location: Port};
 type Location = RegisterLocation | PortLocation;
 
 type Literal = WithType<"LITERAL"> & {value: number};
-type Source = Literal | Location;
+type Operand = Literal | Location;
 
 const OppositePorts = {
     [Ports.UP]: Ports.DOWN,
@@ -63,24 +65,33 @@ const OppositePorts = {
     [Ports.LAST]: Ports.LAST,
 } as const;
 
-const Instructions = {
-    NOP: "NOP",
-    MOV: "MOV",
-    SWP: "SWP",
-    SAV: "SAV",
-    ADD: "ADD",
-    SUB: "SUB",
-    NEG: "NEG",
-    JMP: "JMP",
-    JEZ: "JEZ",
-    JNZ: "JNZ",
-    JGZ: "JGZ",
-    JLZ: "JLZ",
-    JRO: "JRO",
-} as const;
+enum Opcode {
+    NOP,
+    MOV,
+    SWP,
+    SAV,
+    ADD,
+    SUB,
+    NEG,
+    JMP,
+    JEZ,
+    JNZ,
+    JGZ,
+    JLZ,
+    JRO,
+}
+
+type Instruction = {
+    opcode: Opcode,
+    src?: Operand,
+    dst?: Operand
+    lineNumber: number
+}
+
 
 export type ComputationNodeState = WithType<"COMPUTATION"> & {
-    instructions: string[],
+    instructions: Instruction[],
+    labelMapping: Map<string, Pointer>,
     instructionPointer: Pointer,
     acc: RegisterValue,
     bak: RegisterValue,
@@ -216,7 +227,7 @@ export class Interpreter {
         const node = this.nodes[y][x];
 
         if (node.type == "COMPUTATION") {
-            node.instructions = instructions;
+            this.compileInstructions({x, y}, node, instructions);
         } else {
             throw new TISIllegalArgumentError(`Node at row ${y}, col ${x} is not a computation node.  If you see this, please report to Jon.`, {x, y}, 0);
         }
@@ -262,57 +273,135 @@ export class Interpreter {
         return this.problemDescription.outputNodes;
     }
 
+    private compileInstructions({x, y}: NodeCoordinates, node: ComputationNodeState, instructions: string[]) {
+        const instructionOperands = [];
+
+        for (let i = 0; i < instructions.length; i++) {
+            const trimmedInstruction = instructions[i].trim();
+
+            if (trimmedInstruction.startsWith("#")) {
+                continue;
+            }
+
+            const colonIndex = trimmedInstruction.indexOf(":");
+
+            if (colonIndex !== -1) {
+                node.labelMapping.set(trimmedInstruction.substring(0, colonIndex), instructions.length);
+
+                if (colonIndex === trimmedInstruction.length - 1) {
+                    continue;
+                }
+            }
+
+            const remainingInstruction = trimmedInstruction.substring(colonIndex + 1, trimmedInstruction.length);
+
+            const [opcodeStr, ...operands] = remainingInstruction.split(/\s+/);
+
+            const opcode = Opcode[opcodeStr as keyof typeof Opcode];
+
+            if (opcode === undefined) {
+                throw new InstructionSyntaxError(`Instruction ${opcode} not defined`, {x, y}, i);
+            }
+
+            node.instructions.push({
+                opcode,
+                lineNumber: i + 1
+            })
+
+            instructionOperands.push(operands);
+        }
+
+        for (let i = 0; i < node.instructions.length; i++) {
+            const currentInstruction = node.instructions[i];
+            const currentInstructionOpcode = currentInstruction.opcode;
+            const currentInstructionOperands = instructionOperands[i];
+            const currentInstructionOperandsLength = currentInstructionOperands.length;
+
+            let expectedOperandCount;
+
+            switch (currentInstructionOpcode) {
+                case Opcode.NOP:
+                case Opcode.SAV:
+                case Opcode.SWP:
+                case Opcode.NEG:
+                    expectedOperandCount = 0;
+
+                    if (currentInstructionOperands.length !== expectedOperandCount) {
+                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} operands but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                    }
+
+                    break;
+                case Opcode.MOV:
+                    expectedOperandCount = 2;
+
+                    if (currentInstructionOperandsLength !== expectedOperandCount) {
+                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} components but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                    } else {
+                        currentInstruction.src = this.isValidSource(node, {x, y}, currentInstructionOperands[0]);
+                        currentInstruction.dst = this.isValidPortOrRegister(node, {x, y}, currentInstructionOperands[1]);
+
+                        break;
+                    }
+                case Opcode.ADD:
+                case Opcode.SUB:
+                    expectedOperandCount = 1;
+
+                    if (currentInstructionOperandsLength !== expectedOperandCount) {
+                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} components but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                    } else {
+                        currentInstruction.src = this.isValidSource(node, {x, y}, currentInstructionOperands[0]);
+
+                        break;
+                    }
+                case Opcode.JMP:
+                    expectedOperandCount = 1;
+
+                    if (currentInstructionOperandsLength !== expectedOperandCount) {
+                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} components but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                    } else {
+                        const targetLabel = currentInstructionOperands[0];
+                        const targetLabelMapping = node.labelMapping.get(targetLabel);
+
+                        if (targetLabelMapping === undefined) {
+                            throw new TISIllegalArgumentError(`Unknown label ${targetLabel}`, {x, y}, currentInstruction.lineNumber);
+                        }
+
+                        currentInstruction.dst = {type: "LITERAL", value: targetLabelMapping};
+
+                        break;
+                    }
+
+                default:
+                    throw new InstructionSyntaxError(`Instruction ${currentInstructionOpcode} not defined`, {x, y}, currentInstruction.lineNumber);
+            }
+        }
+    }
+
+    // TODO: Implement the rest of the instructions here alongside comments and labels
+
+
     private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
         if (node.instructions.length !== 0 && !node.writeValue) {
-            const cleanedInstructions = this.cleanInstructions(node.instructions);
-
-            if (node.instructionPointer >= cleanedInstructions.length) {
+            if (node.instructionPointer >= node.instructions.length) {
                 node.instructionPointer = 0;
             }
 
-            const instructionComponents = cleanedInstructions[node.instructionPointer].split(/\s+/);
-
-            const instructionComponentsLength = instructionComponents.length;
-            const opcode = instructionComponents[0];
+            const currentInstruction = node.instructions[node.instructionPointer];
 
             // TODO: Implement the rest of the instructions here alongside comments and labels
-            switch (opcode) {
-                case (Instructions.NOP):
-                    const NOP_COMPONENT_LENGTH = 1;
-
-                    if (instructionComponentsLength !== NOP_COMPONENT_LENGTH) {
-                        throw new InstructionSyntaxError(`NOP instruction expects ${NOP_COMPONENT_LENGTH} component but had ${instructionComponentsLength}`, {x, y}, node.instructionPointer);
-                    } else {
-                        this.executeNOP(node);
-                        break;
-                    }
-                case (Instructions.MOV):
-                    const MOV_COMPONENT_LENGTH = 3;
-
-                    if (instructionComponentsLength !== MOV_COMPONENT_LENGTH) {
-                        throw new InstructionSyntaxError(`MOV instruction expects ${MOV_COMPONENT_LENGTH} components but had ${instructionComponentsLength}`, {x, y}, node.instructionPointer);
-                    } else {
-                        this.executeMOV(node, {x, y}, instructionComponents);
-                        break;
-                    }
-                case (Instructions.ADD):
-                    const ADD_COMPONENT_LENGTH = 2;
-
-                    if (instructionComponentsLength !== ADD_COMPONENT_LENGTH) {
-                        throw new InstructionSyntaxError(`ADD instruction expects ${ADD_COMPONENT_LENGTH} components but had ${instructionComponentsLength}`, {x, y}, node.instructionPointer);
-                    } else {
-                        this.executeADD(node, {x, y}, instructionComponents);
-                        break;
-                    }
-                case (Instructions.SUB):
-                    const SUB_COMPONENT_LENGTH = 2;
-
-                    if (instructionComponentsLength !== SUB_COMPONENT_LENGTH) {
-                        throw new InstructionSyntaxError(`SUB instruction expects ${SUB_COMPONENT_LENGTH} components but had ${instructionComponentsLength}`, {x, y}, node.instructionPointer);
-                    } else {
-                        this.executeSUB(node, {x, y}, instructionComponents);
-                        break;
-                    }
+            switch (currentInstruction.opcode) {
+                case (Opcode.NOP):
+                    this.executeNOP(node);
+                    break;
+                case (Opcode.MOV):
+                    this.executeMOV(node, {x, y}, currentInstruction.src!, currentInstruction.dst!);
+                    break;
+                case (Opcode.ADD):
+                    this.executeADD(node, {x, y}, currentInstruction.src!);
+                    break;
+                case (Opcode.SUB):
+                    this.executeSUB(node, {x, y}, currentInstruction.src!);
+                    break;
                 case (Instructions.SWP):
                     const SWP_COMPONENT_LENGTH = 1;
 
@@ -355,31 +444,6 @@ export class Interpreter {
         }
     }
 
-    // TODO: Refactor this
-    private cleanInstructions(instructions: string[]): string[] {
-        const cleanedInstructions = [];
-
-        for (const instruction of instructions) {
-            const trimmedInstruction = instruction.trim();
-
-            if (trimmedInstruction.startsWith("#")) {
-                continue;
-            }
-
-            const colonIndex = trimmedInstruction.indexOf(":");
-
-            if (colonIndex === trimmedInstruction.length - 1) {
-                continue;
-            } else if (colonIndex !== -1) {
-                cleanedInstructions.push(trimmedInstruction.substring(colonIndex + 1, trimmedInstruction.length).trim());
-            } else {
-                cleanedInstructions.push(trimmedInstruction);
-            }
-        }
-
-        return cleanedInstructions;
-    }
-
     // TODO: Implement rest of ports here
     private getNeighborNode(node: ComputationNodeState, {x, y}: NodeCoordinates, port: Port): NodeState | null {
         switch (port) {
@@ -401,7 +465,7 @@ export class Interpreter {
     }
 
     // TODO: Add additional node types here
-    private executeMOV(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
+    private executeMOV(node: ComputationNodeState, {x, y}: NodeCoordinates, src: Operand, dst: Operand) {
         const readData = this.executeRead(node, {x, y}, this.isValidSource(node, {x, y}, instructionComponents[1]));
 
         if (readData !== null) {
@@ -409,7 +473,7 @@ export class Interpreter {
         }
     }
 
-    private executeADD(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
+    private executeADD(node: ComputationNodeState, {x, y}: NodeCoordinates, src: Operand) {
         const readData = this.executeRead(node, {x, y}, this.isValidSource(node, {x, y}, instructionComponents[1]));
 
         if (readData) {
@@ -418,7 +482,7 @@ export class Interpreter {
         }
     }
 
-    private executeSUB(node: ComputationNodeState, {x, y}: NodeCoordinates, instructionComponents: string[]) {
+    private executeSUB(node: ComputationNodeState, {x, y}: NodeCoordinates, src: Operand) {
         const readData = this.executeRead(node, {x, y}, this.isValidSource(node, {x, y}, instructionComponents[1]));
 
         if (readData) {
@@ -455,7 +519,7 @@ export class Interpreter {
     // TODO: Write a function that updates the test case index accordingly
     // TODO: Figure out how to handle random test case generation
 
-    private executeRead(node: ComputationNodeState, {x, y}: NodeCoordinates, source: Source): number | null {
+    private executeRead(node: ComputationNodeState, {x, y}: NodeCoordinates, source: Operand): number | null {
         if (source.type === "PORT") {
             const sourcePort = source.location;
             const sourceNode = this.getNeighborNode(node, {x, y}, sourcePort);
@@ -567,7 +631,7 @@ export class Interpreter {
         };
     }
 
-    private isValidSource(node: ComputationNodeState, {x, y}: NodeCoordinates,input: string): Source {
+    private isValidSource(node: ComputationNodeState, {x, y}: NodeCoordinates,input: string): Operand {
         try {
             return this.isValidInteger(node, {x, y}, input);
         } catch (IllegalArgumentError) {
