@@ -4,9 +4,9 @@ import {getProblemLogic} from "@/data/ProblemLogicMapping";
 
 const interpreter = new Interpreter(systemValidationProblemDescription, getProblemLogic(systemValidationProblemDescription.id));
 
-interpreter.updateInstructions({x: 0, y: 1}, ["MOV UP DOWN"]);
-interpreter.updateInstructions({x: 0, y: 2}, ["MOV UP DOWN"]);
-interpreter.updateInstructions({x: 0, y: 3}, ["MOV UP DOWN"]);
+interpreter.updateInstructions({x: 0, y: 1}, ["MOV UP DOWN"], false);
+interpreter.updateInstructions({x: 0, y: 2}, ["MOV UP DOWN"], false);
+interpreter.updateInstructions({x: 0, y: 3}, ["MOV UP DOWN"], false);
 
 while (!interpreter.completed()) {
     interpreter.printNodes();
