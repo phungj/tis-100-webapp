@@ -51,7 +51,7 @@ export default function App({problems}: AppProps) {
                     const currentNodeIndex = (y - 1) * GRID_WIDTH + x;
                     const currentInstructions = save[currentNodeIndex].trim();
 
-                    interpreter.current?.updateInstructions({x, y}, currentInstructions === "" ? [] : currentInstructions.split("\n"));
+                    interpreter.current?.updateInstructions({x, y}, currentInstructions === "" ? [] : currentInstructions.split("\n"), true);
                 }
             }
 
@@ -86,7 +86,7 @@ export default function App({problems}: AppProps) {
                 <Navbar homeButtonHandler={homeButtonHandler}/>
                 <div className="flex flex-row">
                     <Sidebar problemDescription={problemDescription!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
-                    <div className="grid grid-cols-4 grid-rows-3 w-full h-screen">
+                    <div className="grid grid-cols-4 grid-rows-3 w-full min-h-screen">
                         {computationNodes.flat().map((node, i) => <ComputationNode key={i} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)} running={running} code={instructionValues[i]} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>)}
                     </div>
                 </div>
@@ -136,7 +136,7 @@ export default function App({problems}: AppProps) {
             for (let x = 0; x < GRID_WIDTH; x++) {
                 const currentInput = instructionValues[(y - 1) * GRID_WIDTH + x]!.trim();
 
-                interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.toUpperCase().split("\n"));
+                interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.toUpperCase().split("\n"), false);
             }
         }
 
@@ -155,10 +155,6 @@ export default function App({problems}: AppProps) {
                 setErrorMessage(e.message);
             }
         }
-
-
-        // TODO: Determine how to handle interaction from here, possibly just   disable everything for now?
-        // TODO: Certainly needs to stop playing or going fast if that's the case
     }
 
     function fastButtonHandler() {
