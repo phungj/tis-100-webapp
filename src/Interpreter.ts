@@ -370,6 +370,10 @@ export class Interpreter {
                         break;
                     }
                 case Opcode.JMP:
+                case Opcode.JEZ:
+                case Opcode.JNZ:
+                case Opcode.JGZ:
+                case Opcode.JLZ:
                     expectedOperandCount = 1;
 
                     if (currentInstructionOperandsLength !== expectedOperandCount) {
@@ -386,15 +390,27 @@ export class Interpreter {
 
                         break;
                     }
+                case Opcode.JRO:
+                    expectedOperandCount = 1;
 
+                    if (currentInstructionOperandsLength !== expectedOperandCount) {
+                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} components but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                    } else {
+                        try {
+                            currentInstruction.dst = this.isValidInteger(node, {x, y}, currentInstructionOperands[0]);
+                        } catch (e) {
+                            if (e instanceof TISIllegalArgumentError) {
+                                currentInstruction.dst = this.isValidPortOrRegister(node, {x, y}, currentInstructionOperands[0]);
+                            }
+                        }
+
+                        break;
+                    }
                 default:
                     throw new InstructionSyntaxError(`Instruction ${currentInstructionOpcode} not defined`, {x, y}, currentInstruction.lineNumber);
             }
         }
     }
-
-    // TODO: Implement the rest of the instructions here alongside comments and labels
-
 
     private executeInstruction(node: ComputationNodeState, {x, y}: NodeCoordinates) {
         if (node.instructions.length !== 0 && !node.writeValue) {
@@ -405,32 +421,46 @@ export class Interpreter {
             const currentInstruction = node.instructions[node.instructionPointer];
             const currentInstructionOpcode = currentInstruction.opcode;
 
-            // TODO: Implement the rest of the instructions here alongside comments and labels
-            // TODO: Eliminate parentheses here
+            // TODO: Implement the rest of the instructions here
             switch (currentInstructionOpcode) {
-                case (Opcode.NOP):
+                case Opcode.NOP:
                     this.executeNOP(node);
                     break;
-                case (Opcode.MOV):
+                case Opcode.MOV:
                     this.executeMOV(node, {x, y}, currentInstruction.src!, currentInstruction.dst!);
                     break;
-                case (Opcode.ADD):
+                case Opcode.ADD:
                     this.executeADD(node, {x, y}, currentInstruction.src!);
                     break;
-                case (Opcode.SUB):
+                case Opcode.SUB:
                     this.executeSUB(node, {x, y}, currentInstruction.src!);
                     break;
-                case (Opcode.SWP):
+                case Opcode.SWP:
                     this.executeSWP(node);
                     break;
-                case (Opcode.SAV):
+                case Opcode.SAV:
                     this.executeSAV(node);
                     break;
-                case (Opcode.NEG):
+                case Opcode.NEG:
                     this.executeNEG(node);
                     break;
-                case (Opcode.JMP):
-                    this.executeJump(node, (currentInstruction.dst! as Literal).value);
+                case Opcode.JMP:
+                    this.executeJMP(node, (currentInstruction.dst! as Literal).value);
+                    break;
+                case Opcode.JEZ:
+                    this.executeJEZ(node, (currentInstruction.dst! as Literal).value);
+                    break;
+                case Opcode.JNZ:
+                    this.executeJNZ(node, (currentInstruction.dst! as Literal).value);
+                    break;
+                case Opcode.JGZ:
+                    this.executeJGZ(node, (currentInstruction.dst! as Literal).value);
+                    break;
+                case Opcode.JLZ:
+                    this.executeJLZ(node, (currentInstruction.dst! as Literal).value);
+                    break;
+                case Opcode.JRO:
+                    this.executeJRO(node, {x, y}, currentInstruction.dst!);
                     break;
                 default:
                     throw new InstructionSyntaxError(`Instruction ${currentInstructionOpcode} not defined`, {x, y}, node.instructionPointer);
@@ -576,10 +606,32 @@ export class Interpreter {
         }
     }
 
-    private executeJump(node: ComputationNodeState, instructionPointer: Pointer) {
-        console.log(node);
-
+    private executeJMP(node: ComputationNodeState, instructionPointer: Pointer) {
         node.instructionPointer = instructionPointer;
+    }
+
+    private executeJEZ(node: ComputationNodeState, instructionPointer: Pointer) {
+        node.instructionPointer = node.acc === 0 ? instructionPointer : node.instructionPointer + 1;
+    }
+
+    private executeJNZ(node: ComputationNodeState, instructionPointer: Pointer) {
+        node.instructionPointer = node.acc !== 0 ? instructionPointer : node.instructionPointer + 1;
+    }
+
+    private executeJGZ(node: ComputationNodeState, instructionPointer: Pointer) {
+        node.instructionPointer = node.acc > 0 ? instructionPointer : node.instructionPointer + 1;
+    }
+
+    private executeJLZ(node: ComputationNodeState, instructionPointer: Pointer) {
+        node.instructionPointer = node.acc < 0 ? instructionPointer : node.instructionPointer + 1;
+    }
+
+    private executeJRO(node: ComputationNodeState, {x, y}: NodeCoordinates, sourceLocation: Operand) {
+        const offset = this.executeRead(node, {x, y}, sourceLocation);
+
+        if (offset !== null) {
+            node.instructionPointer += offset;
+        }
     }
 
     private isValidPort(input: string): input is Port {
