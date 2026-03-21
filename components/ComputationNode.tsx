@@ -5,9 +5,9 @@ import {MAX_CHARS_PER_LINE, MAX_LINES} from "@/components/App";
 type ComputationNodeProps = {
     computationNodeState: ComputationNodeState,
     hasInput: boolean,
-    inputName?: string,
+    inputName: string,
     hasOutput: boolean,
-    outputName?: string,
+    outputName: string,
     running: boolean,
     code: string,
     instructionChangeHandler: (e: React.ChangeEvent<HTMLTextAreaElement>) => void

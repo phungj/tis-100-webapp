@@ -19,10 +19,9 @@ type SidebarProps = {
 }
 
 // TODO: update rendering of multiple input and output components to be side by side
-// TODO: Get font awesome buttons here
 export default function Sidebar({problemDescription, inputNodeCoordinates, outputNodeCoordinates, nodeState, stopButtonHandler, playButtonHandler, stepButtonHandler, fastButtonHandler}: SidebarProps) {
     return (
-        <div className="flex flex-col">
+        <div className="flex flex-col mr-5">
             <ProblemDescriptionComponent problemDescription={problemDescription}/>
             <div className="flex flex-row">
                 {inputNodeCoordinates.map(({x, y}, i) => <InputNode key={i} inputNodeState={nodeState[y][x] as InputNodeState}/>)}

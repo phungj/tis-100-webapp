@@ -11,6 +11,7 @@ import ErrorDialog from "@/components/ErrorDialog";
 import {TISError} from "@/src/Errors";
 import Navbar from "@/components/Navbar";
 import ComputationNode from "@/components/ComputationNode";
+import BrokenNode from "@/components/BrokenNode";
 
 export const MAX_LINES = 15;
 export const MAX_CHARS_PER_LINE = 18;
@@ -48,10 +49,13 @@ export default function App({problems}: AppProps) {
             // TODO: Refactor this into a function?
             for (let y = 1; y < GRID_HEIGHT - 1; y++) {
                 for (let x = 0; x < GRID_WIDTH; x++) {
-                    const currentNodeIndex = (y - 1) * GRID_WIDTH + x;
-                    const currentInstructions = save[currentNodeIndex].trim();
+                    if (nodeState[y][x].type === "COMPUTATION") {
+                        const currentNodeIndex = (y - 1) * GRID_WIDTH + x;
+                        const currentInstructions = save[currentNodeIndex].trim();
 
-                    interpreter.current?.updateInstructions({x, y}, currentInstructions === "" ? [] : currentInstructions.split("\n"), true);
+                        interpreter.current?.updateInstructions({x, y}, currentInstructions === "" ? [] : currentInstructions.split("\n"), true);
+
+                    }
                 }
             }
 
@@ -72,12 +76,10 @@ export default function App({problems}: AppProps) {
         // TODO: Update the computation nodes with refs so you can get their values accordingly
         // TODO: Update to handle named and multiple inputs
         const inputNodeCoordinates = interpreter.current!.getInputNodeCoordinates();
-        const inputNodeColumns = inputNodeCoordinates.map(({x, y}) => x);
 
         const outputNodeCoordinates = interpreter.current!.getOutputNodeCoordinates();
-        const outputNodeColumns = outputNodeCoordinates.map(({x, y}) => x);
 
-        const computationNodes = nodeState.slice(1, 4);
+        const displayedNodes = nodeState.slice(1, 4);
 
         return (
             <div>
@@ -87,13 +89,30 @@ export default function App({problems}: AppProps) {
                 <div className="flex flex-row">
                     <Sidebar problemDescription={problemDescription!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
                     <div className="grid grid-cols-4 grid-rows-3 w-full min-h-screen">
-                        {computationNodes.flat().map((node, i) => {
-                            // TODO: Refactor this to map i to node coordinates and see if they're inputs or not
-                            const currentNodeCoordinates = {x: i % GRID_WIDTH, y: Math.floor(i / (GRID_HEIGHT - 2))};
-                            const hasInput = problemDescription!.inputNodes.inputNodeCoordinates.findIndex(())
+                        {displayedNodes.flat().map((node, i) => {
+                            switch (node.type) {
+                                case "COMPUTATION":
+                                    const inputNodes = problemDescription!.inputNodes;
+                                    const outputNodes = problemDescription!.outputNodes;
 
-                            return <ComputationNode key={i} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)} running={running} code={instructionValues[i]} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>
-                        })}
+                                    const currentNodeCoordinates = {x: i % GRID_WIDTH, y: 1 + Math.floor(i / (GRID_WIDTH))};
+                                    const inputIndex = inputNodes.inputNodeCoordinates.findIndex(c => c.x === currentNodeCoordinates.x && c.y === currentNodeCoordinates.y - 1);
+                                    const outputIndex = outputNodes.outputNodeCoordinates.findIndex(c => c.x === currentNodeCoordinates.x && c.y === currentNodeCoordinates.y + 1);
+
+                                    let inputName = "";
+                                    let outputName = "";
+
+                                    if (inputIndex !== -1) {
+                                        inputName = `IN.${inputNodes.inputNames[inputIndex]}`;
+                                    } else if (outputIndex !== -1) {
+                                        outputName = `OUT.${outputNodes.outputNames[outputIndex]}`;
+                                    }
+
+                                    return <ComputationNode key={i} computationNodeState={node as ComputationNodeState} hasInput={inputIndex !== -1} inputName={inputName} hasOutput={outputIndex !== -1} outputName={outputName} running={running} code={instructionValues[i]} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>
+                                case "BROKEN":
+                                    return <BrokenNode key={i}/>
+                            }
+                            })}
                     </div>
                 </div>
             </div>
@@ -140,9 +159,11 @@ export default function App({problems}: AppProps) {
     function stepButtonHandler() {
         for (let y = 1; y < GRID_HEIGHT - 1; y++) {
             for (let x = 0; x < GRID_WIDTH; x++) {
-                const currentInput = instructionValues[(y - 1) * GRID_WIDTH + x]!.trim();
+                if (nodeState[y][x].type === "COMPUTATION") {
+                    const currentInput = instructionValues[(y - 1) * GRID_WIDTH + x]!.trim();
 
-                interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.toUpperCase().split("\n"), false);
+                    interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.toUpperCase().split("\n"), false);
+                }
             }
         }
 

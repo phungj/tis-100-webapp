@@ -20,6 +20,8 @@ type WithType<T extends string> = {
 
 type EmptyState = WithType<"EMPTY">;
 
+type BrokenState = WithType<"BROKEN">;
+
 // TODO: Add a name to inputs and outputs so you can label them accordingly and have multiple
 export type InputNodeState = WithType<"INPUT"> & {
     data: Data,
@@ -101,7 +103,7 @@ export type ComputationNodeState = WithType<"COMPUTATION"> & {
     writePort: Port | null
 }
 
-export type NodeState = InputNodeState | OutputNodeState | ComputationNodeState | EmptyState;
+export type NodeState = InputNodeState | OutputNodeState | ComputationNodeState | EmptyState | BrokenState;
 
 // TODO: Handle commas?
 export class Interpreter {
@@ -125,6 +127,10 @@ export class Interpreter {
             fillFunction = i == 0 || i == GRID_HEIGHT - 1 ? this.emptyNodeFactory : this.computationNodeFactory;
 
             this.nodes.push(Array.from({length: GRID_WIDTH}, () => fillFunction()));
+        }
+
+        for (const brokenNodeCoordinates of problemDescription.brokenNodes) {
+            this.nodes[brokenNodeCoordinates.y][brokenNodeCoordinates.x] = {type: "BROKEN"};
         }
 
         this.reset();
@@ -208,8 +214,8 @@ export class Interpreter {
 
 
     public completed(): boolean {
-        for (const outputNode of this.problemDescription.outputNodes) {
-            const currentOutputNode = this.nodes[outputNode.y][outputNode.x];
+        for (const outputNodeCoordinates of this.problemDescription.outputNodes.outputNodeCoordinates) {
+            const currentOutputNode = this.nodes[outputNodeCoordinates.y][outputNodeCoordinates.x];
 
             if (currentOutputNode.type == "OUTPUT" && currentOutputNode.data.length !== currentOutputNode.expectedOutput.length) {
                 return false;
@@ -281,11 +287,11 @@ export class Interpreter {
     }
 
     public getInputNodeCoordinates(): NodeCoordinates[] {
-        return this.problemDescription.inputNodes;
+        return this.problemDescription.inputNodes.inputNodeCoordinates;
     }
 
     public getOutputNodeCoordinates(): NodeCoordinates[] {
-        return this.problemDescription.outputNodes;
+        return this.problemDescription.outputNodes.outputNodeCoordinates;
     }
 
     private compileInstructions({x, y}: NodeCoordinates, node: ComputationNodeState, instructions: string[]) {
