@@ -5,19 +5,21 @@ import {MAX_CHARS_PER_LINE, MAX_LINES} from "@/components/App";
 type ComputationNodeProps = {
     computationNodeState: ComputationNodeState,
     hasInput: boolean,
+    inputName?: string,
     hasOutput: boolean,
+    outputName?: string,
     running: boolean,
     code: string,
     instructionChangeHandler: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
 }
 
-export default function ComputationNode({computationNodeState, hasInput, hasOutput, running, code, instructionChangeHandler}: ComputationNodeProps) {
+export default function ComputationNode({computationNodeState, hasInput, inputName, hasOutput, outputName, running, code, instructionChangeHandler}: ComputationNodeProps) {
 
     // TODO: Get the header centered
     // TODO: Try codemirror integration
     return (
         <div>
-            {hasInput ? <h1 className="font-title text-heading text-2xl font-bold text-center">Input</h1> : null}
+            {hasInput ? <h1 className="font-title text-heading text-2xl font-bold text-center">{inputName}</h1> : null}
             <div className="flex">
                 <div className="relative">
                           <textarea value={code} disabled={running} onChange={instructionChangeHandler} rows={MAX_LINES}
@@ -33,7 +35,7 @@ export default function ComputationNode({computationNodeState, hasInput, hasOutp
                     {/* TODO: <ComputationNodeItem name="IDLE" value="N/A"/> */ null}
                 </div>
             </div>
-            {hasOutput ? <h1 className="font-title text-heading text-2xl font-bold text-center">Output</h1> : null}
+            {hasOutput ? <h1 className="font-title text-heading text-2xl font-bold text-center">{outputName}</h1> : null}
         </div>
     );
 }

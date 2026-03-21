@@ -14,9 +14,15 @@ export type ProblemDescription = {
     title: string,
     description: string,
     seed: Seed,
-    inputNodes: NodeCoordinates[],
-    inputs: Data[][],
-    outputNodes: NodeCoordinates[],
+    inputNodes: {
+        inputNodeCoordinates: NodeCoordinates[],
+        inputValues: Data[][],
+        inputNames: string[]
+    },
+    outputNodes: {
+        outputNodeCoordinates: NodeCoordinates[],
+        outputNames: string[]
+    },
     brokenNodes: NodeCoordinates[],
     stackNodes: NodeCoordinates[]
 };

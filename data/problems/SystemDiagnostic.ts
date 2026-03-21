@@ -10,9 +10,15 @@ export const problemDescription: ProblemDescription = {
     title: "System Diagnostic",
     description: "Send the input to the output.",
     seed: 31415,
-    inputNodes: [{x: 0, y: 0}],
-    inputs: [[[1, 2, 3, 4, 5]]],
-    outputNodes: [{x: 0, y: GRID_HEIGHT - 1}],
+    inputNodes:{
+        inputNodeCoordinates: [{x: 0, y: 0}],
+        inputValues: [[[1, 2, 3, 4, 5]]],
+        inputNames: ["in"]
+    },
+    outputNodes: {
+        outputNodeCoordinates: [{x: 0, y: GRID_HEIGHT - 1}],
+        outputNames: ["out"]
+    },
     brokenNodes: [],
     stackNodes: []
 };

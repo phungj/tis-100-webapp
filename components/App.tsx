@@ -87,7 +87,13 @@ export default function App({problems}: AppProps) {
                 <div className="flex flex-row">
                     <Sidebar problemDescription={problemDescription!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
                     <div className="grid grid-cols-4 grid-rows-3 w-full min-h-screen">
-                        {computationNodes.flat().map((node, i) => <ComputationNode key={i} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)} running={running} code={instructionValues[i]} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>)}
+                        {computationNodes.flat().map((node, i) => {
+                            // TODO: Refactor this to map i to node coordinates and see if they're inputs or not
+                            const currentNodeCoordinates = {x: i % GRID_WIDTH, y: Math.floor(i / (GRID_HEIGHT - 2))};
+                            const hasInput = problemDescription!.inputNodes.inputNodeCoordinates.findIndex(())
+
+                            return <ComputationNode key={i} computationNodeState={node as ComputationNodeState} hasInput={i < GRID_WIDTH && inputNodeColumns.includes(i % GRID_WIDTH)} hasOutput={i >= (2 * GRID_WIDTH) && outputNodeColumns?.includes(i % GRID_WIDTH)} running={running} code={instructionValues[i]} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>
+                        })}
                     </div>
                 </div>
             </div>

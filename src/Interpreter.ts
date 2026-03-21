@@ -147,12 +147,13 @@ export class Interpreter {
         this.testCaseIndex = 0;
 
         const inputNodes = this.problemDescription.inputNodes;
-        const currentInputs = this.problemDescription.inputs[this.testCaseIndex];
+        const currentInputs = inputNodes.inputValues[this.testCaseIndex];
+        const inputNodeCoordinates = inputNodes.inputNodeCoordinates;
 
-        for (let i = 0; i < this.problemDescription.inputNodes.length; i++) {
-            const inputNode = inputNodes[i];
+        for (let i = 0; i < inputNodeCoordinates.length; i++) {
+            const currentInputNodeCoordinates = inputNodeCoordinates[i];
 
-            this.nodes[inputNode.y][inputNode.x] = {
+            this.nodes[currentInputNodeCoordinates.y][currentInputNodeCoordinates.x] = {
                 type: "INPUT",
                 data: currentInputs[i],
                 dataPointer: 0
@@ -160,11 +161,12 @@ export class Interpreter {
         }
 
         const outputNodes = this.problemDescription.outputNodes;
+        const outputNodeCoordinates = outputNodes.outputNodeCoordinates;
 
-        for (let i = 0; i < this.problemDescription.outputNodes.length; i++) {
-            const outputNode = outputNodes[i];
+        for (let i = 0; i < outputNodeCoordinates.length; i++) {
+            const currentOutputNodeCoordinates = outputNodeCoordinates[i];
 
-            this.nodes[outputNode.y][outputNode.x] = {
+            this.nodes[currentOutputNodeCoordinates.y][currentOutputNodeCoordinates.x] = {
                 type: "OUTPUT",
                 data: [],
                 expectedOutput: this.problemLogic.computeExpectedOutput(currentInputs, i),
