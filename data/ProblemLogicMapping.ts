@@ -16,19 +16,23 @@ export function getProblemLogic(problemID: string): ProblemLogic {
                 computeExpectedOutput: (input: Data[], outputIndex) => input[0].map(n => n * 2)
             }
         case "differential-converter":
-            // TODO:
             return {
                 generateInputs: (seed: Seed) => [[]],
                 computeExpectedOutput: (input: Data[], outputIndex) => input[0].map(outputIndex == 0 ? (x, i) => x - input[1][i] : (x, i) => input[1][i] - x)
             }
         case "signal-comparator":
-            // TODO:
             return {
                 generateInputs: (seed: Seed) => [[]],
                 computeExpectedOutput: (input: Data[], outputIndex) => {
                     switch (outputIndex) {
                         case 0:
-                            input[0].map((i) => )
+                            return input[0].map((i) => i > 0 ? 1 : 0);
+                        case 1:
+                            return input[0].map((i) => i === 0 ? 1 : 0);
+                        case 2:
+                            return input[0].map((i) => i < 0 ? 1 : 0);
+                        default:
+                            throw new IllegalArgumentError("Problem Signal Comparator is malformed.  Please tell Jon.");
                     }
                 }
             }

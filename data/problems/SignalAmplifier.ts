@@ -16,7 +16,7 @@ export const problemDescription: ProblemDescription = {
         inputNames: [""]
     },
     outputNodes: {
-        outputNodeCoordinates: [{x: 0, y: GRID_HEIGHT - 1}],
+        outputNodeCoordinates: [{x: GRID_WIDTH - 1, y: GRID_HEIGHT - 1}],
         outputNames: [""]
     },
     brokenNodes: [{x: GRID_WIDTH - 1, y: 1}, {x: 0, y: 3}],

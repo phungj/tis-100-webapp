@@ -8,7 +8,7 @@ export default function ProblemDescriptionComponent({problemDescription}: Proble
     return (
         <div className="border-4 border-white">
             <h1 className="font-title text-heading text-2xl font-bold text-center">{problemDescription.title}</h1>
-            <h2>{problemDescription.description}</h2>
+            <h2 className="whitespace-pre-wrap">{problemDescription.description}</h2>
         </div>
     )
 }

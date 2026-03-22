@@ -1,7 +1,7 @@
 "use client";
 
 import {NodeCoordinates, ProblemDescription, ProblemLogic} from "@/data/ProblemSpecificationTypes";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {ComputationNodeState, GRID_HEIGHT, GRID_WIDTH, InputNodeState, Interpreter, NodeState} from "@/src/Interpreter";
 import ProblemList from "@/components/ProblemList";
 import {getProblemLogic} from "@/data/ProblemLogicMapping";
@@ -44,7 +44,7 @@ export default function App({problems}: AppProps) {
 
     useEffect(() => setMounted(true), []);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (save.length > 0) {
             // TODO: Refactor this into a function?
             for (let y = 1; y < GRID_HEIGHT - 1; y++) {
@@ -63,6 +63,7 @@ export default function App({problems}: AppProps) {
         }
     }, [save]);
 
+    // TODO: Possibly attempt to see if there's a way to merge these two useeffects?
     useEffect(() => {
         localStorage.setItem(SAVE_PREFIX + problemDescription?.id, JSON.stringify(instructionValues));
     }, [instructionValues]);
@@ -90,6 +91,8 @@ export default function App({problems}: AppProps) {
                     <Sidebar problemDescription={problemDescription!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
                     <div className="grid grid-cols-4 grid-rows-3 w-full min-h-screen">
                         {displayedNodes.flat().map((node, i) => {
+                            console.log(nodeState);
+
                             switch (node.type) {
                                 case "COMPUTATION":
                                     const inputNodes = problemDescription!.inputNodes;
@@ -103,9 +106,13 @@ export default function App({problems}: AppProps) {
                                     let outputName = "";
 
                                     if (inputIndex !== -1) {
-                                        inputName = `IN.${inputNodes.inputNames[inputIndex]}`;
+                                        const currentInputName = inputNodes.inputNames[inputIndex];
+
+                                        inputName = currentInputName ? `IN.${currentInputName}` : "IN";
                                     } else if (outputIndex !== -1) {
-                                        outputName = `OUT.${outputNodes.outputNames[outputIndex]}`;
+                                        const currentOutputName = outputNodes.outputNames[outputIndex];
+
+                                        outputName = currentOutputName ? `OUT.${currentOutputName}` : "OUT";
                                     }
 
                                     return <ComputationNode key={i} computationNodeState={node as ComputationNodeState} hasInput={inputIndex !== -1} inputName={inputName} hasOutput={outputIndex !== -1} outputName={outputName} running={running} code={instructionValues[i]} instructionChangeHandler={instructionChangeHandlerFactory(i)}/>
@@ -125,10 +132,7 @@ export default function App({problems}: AppProps) {
 
         const save = localStorage.getItem(SAVE_PREFIX + problemDescription.id);
 
-        if (save) {
-            const parsedSave = JSON.parse(save);
-            setSave(parsedSave);
-        }
+        setSave(save ? JSON.parse(save) : Array.from({ length: 12 }, () => ''));
 
         setNodeState(interpreter.current!.getNodeSnapshot());
 

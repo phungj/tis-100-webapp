@@ -8,7 +8,7 @@ export const problemDescription: ProblemDescription = {
     id: "differential-converter",
     order: 2,
     title: "Differential Converter",
-    description: "For each pair of inputs from IN.X and IN.Y, output X - Y to OUT.P and Y - X to OUT.N",
+    description: "For each pair of inputs from IN.X and IN.Y, output X - Y to OUT.P and Y - X to OUT.N.",
     seed: 31415,
     inputNodes: {
         inputNodeCoordinates: [{x: 0, y: 0}, {x: GRID_WIDTH - 1, y: 0}],

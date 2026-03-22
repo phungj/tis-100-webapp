@@ -11,12 +11,12 @@ export const problemDescription: ProblemDescription = {
     description: "For each input:\nWrite 1 to OUT.G if IN > 0\nWrite 1 to OUT.E if IN = 0\n Write 1 to OUT.L if IN < 0\nWhen a 1 is not outputted, output 0 instead",
     seed: 31415,
     inputNodes: {
-        inputNodeCoordinates: [{x: 0, y: 0}, {x: GRID_WIDTH - 1, y: 0}],
+        inputNodeCoordinates: [{x: 0, y: 0}],
         inputValues: [[[-2, -1, 0, 1, 2]]],
         inputNames: [""]
     },
     outputNodes: {
-        outputNodeCoordinates: [{x: 1, y: 3}, {x: 2, y: 3}, {x: GRID_WIDTH - 1, y: 3}],
+        outputNodeCoordinates: [{x: 1, y: GRID_HEIGHT - 1}, {x: 2, y: GRID_HEIGHT - 1}, {x: GRID_WIDTH - 1, y: GRID_HEIGHT - 1}],
         outputNames: ["G", "E", "L"]
     },
     brokenNodes: [{x: 1, y: 2}, {x: 2, y: 2}, {x: 3, y: 2}],
