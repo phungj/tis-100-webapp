@@ -351,7 +351,7 @@ export class Interpreter {
                     expectedOperandCount = 0;
 
                     if (currentInstructionOperands.length !== expectedOperandCount) {
-                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} operands but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                        throw new InstructionSyntaxError(`${Opcode[currentInstructionOpcode]} instruction expects ${expectedOperandCount} operands but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
                     }
 
                     break;
@@ -359,7 +359,7 @@ export class Interpreter {
                     expectedOperandCount = 2;
 
                     if (currentInstructionOperandsLength !== expectedOperandCount) {
-                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} components but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                        throw new InstructionSyntaxError(`${Opcode[currentInstructionOpcode]} instruction expects ${expectedOperandCount} operands but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
                     } else {
                         currentInstruction.src = this.isValidSource(node, {x, y}, currentInstructionOperands[0]);
                         currentInstruction.dst = this.isValidPortOrRegister(node, {x, y}, currentInstructionOperands[1]);
@@ -371,7 +371,7 @@ export class Interpreter {
                     expectedOperandCount = 1;
 
                     if (currentInstructionOperandsLength !== expectedOperandCount) {
-                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} components but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                        throw new InstructionSyntaxError(`${Opcode[currentInstructionOpcode]} instruction expects ${expectedOperandCount} operand but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
                     } else {
                         currentInstruction.src = this.isValidSource(node, {x, y}, currentInstructionOperands[0]);
 
@@ -385,7 +385,7 @@ export class Interpreter {
                     expectedOperandCount = 1;
 
                     if (currentInstructionOperandsLength !== expectedOperandCount) {
-                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} components but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                        throw new InstructionSyntaxError(`${Opcode[currentInstructionOpcode]} instruction expects ${expectedOperandCount} operand but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
                     } else {
                         const targetLabel = currentInstructionOperands[0];
                         const targetLabelMapping = labelMapping.get(targetLabel);
@@ -402,7 +402,7 @@ export class Interpreter {
                     expectedOperandCount = 1;
 
                     if (currentInstructionOperandsLength !== expectedOperandCount) {
-                        throw new InstructionSyntaxError(`${currentInstructionOpcode} instruction expects ${expectedOperandCount} components but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
+                        throw new InstructionSyntaxError(`${Opcode[currentInstructionOpcode]} instruction expects ${expectedOperandCount} operand but had ${currentInstructionOperandsLength}`, {x, y}, currentInstruction.lineNumber);
                     } else {
                         try {
                             currentInstruction.dst = this.isValidInteger(node, {x, y}, currentInstructionOperands[0]);
@@ -556,7 +556,7 @@ export class Interpreter {
             const sourcePort = source.location;
             const sourceNode = this.getNeighborNode(node, {x, y}, sourcePort);
 
-            if (sourceNode && sourceNode.type == "INPUT") {
+            if (sourceNode && sourceNode.type == "INPUT" && sourceNode.dataPointer < sourceNode.data.length) {
                 const readData = sourceNode.data[sourceNode.dataPointer];
 
                 sourceNode.dataPointer++;

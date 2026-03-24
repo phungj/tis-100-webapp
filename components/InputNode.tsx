@@ -8,7 +8,7 @@ type InputNodeProps = {
 // TODO: Update with named inputs
 export default function InputNode({inputNodeState}: InputNodeProps) {
     return (
-        <div>
+        <div className="mr-2">
             <h1 className="font-title text-heading text-2xl font-bold text-center">Input</h1>
             <ol className="list grid border-4 border-white">
                 {inputNodeState.data.map((n, i) => <li key={i} className={i === inputNodeState.dataPointer ? "bg-gray-500" : ""}>{n}</li>)}

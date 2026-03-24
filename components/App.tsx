@@ -91,8 +91,6 @@ export default function App({problems}: AppProps) {
                     <Sidebar problemDescription={problemDescription!} inputNodeCoordinates={inputNodeCoordinates} outputNodeCoordinates={outputNodeCoordinates} nodeState={nodeState} stopButtonHandler={stopButtonHandler} playButtonHandler={playButtonHandler} stepButtonHandler={stepButtonHandler} fastButtonHandler={fastButtonHandler}/>
                     <div className="grid grid-cols-4 grid-rows-3 w-full min-h-screen">
                         {displayedNodes.flat().map((node, i) => {
-                            console.log(nodeState);
-
                             switch (node.type) {
                                 case "COMPUTATION":
                                     const inputNodes = problemDescription!.inputNodes;
@@ -166,25 +164,27 @@ export default function App({problems}: AppProps) {
                 if (nodeState[y][x].type === "COMPUTATION") {
                     const currentInput = instructionValues[(y - 1) * GRID_WIDTH + x]!.trim();
 
-                    interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.toUpperCase().split("\n"), false);
+                    try {
+                        interpreter.current?.updateInstructions({x, y}, currentInput === "" ? [] : currentInput.toUpperCase().split("\n"), false);
+                    } catch (e) {
+                        if (e instanceof TISError) {
+                            setErrored(true);
+                            setErrorMessage(e.message);
+
+                            return;
+                        }
+                    }
                 }
             }
         }
 
         setRunning(true);
 
-        try {
-            interpreter.current!.step();
-            setNodeState(interpreter.current!.getNodeSnapshot());
+        interpreter.current!.step();
+        setNodeState(interpreter.current!.getNodeSnapshot());
 
-            if (interpreter.current!.completed()) {
-                setCompleted(true);
-            }
-        } catch (e) {
-            if (e instanceof TISError) {
-                setErrored(true);
-                setErrorMessage(e.message);
-            }
+        if (interpreter.current!.completed()) {
+            setCompleted(true);
         }
     }
 
