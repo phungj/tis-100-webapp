@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
+export const BASE_PATH = '/~phungj/tis-100';
+
 const nextConfig: NextConfig = {
     output: 'export',
-    basePath: '/~phungj/tis-100',
+    basePath: BASE_PATH,
     images: {
         unoptimized: true,
     },

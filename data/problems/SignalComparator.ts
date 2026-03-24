@@ -8,7 +8,7 @@ export const problemDescription: ProblemDescription = {
     id: "signal-comparator",
     order: 3,
     title: "Signal Comparator",
-    description: "For each input:\nWrite 1 to OUT.G if IN > 0\nWrite 1 to OUT.E if IN = 0\n Write 1 to OUT.L if IN < 0\nWhen a 1 is not outputted, output 0 instead",
+    description: "For each input:\nWrite 1 to OUT.G if IN > 0\nWrite 1 to OUT.E if IN = 0\nWrite 1 to OUT.L if IN < 0\nWhen a 1 is not outputted, output 0 instead",
     seed: 31415,
     inputNodes: {
         inputNodeCoordinates: [{x: 0, y: 0}],

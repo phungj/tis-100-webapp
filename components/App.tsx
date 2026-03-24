@@ -12,6 +12,7 @@ import {TISError} from "@/src/Errors";
 import Navbar from "@/components/Navbar";
 import ComputationNode from "@/components/ComputationNode";
 import BrokenNode from "@/components/BrokenNode";
+import {BASE_PATH} from "@/next.config";
 
 export const MAX_LINES = 15;
 export const MAX_CHARS_PER_LINE = 18;
@@ -28,6 +29,8 @@ export default function App({problems}: AppProps) {
 
     const [save, setSave] = useState<string[]>([]);
 
+    const clickSoundRef = useRef<HTMLAudioElement | null>(null);
+
     const [problemDescription, setProblemDescription] = useState<ProblemDescription | null>(null);
     const interpreter = useRef<Interpreter | null>(null);
     const [nodeState, setNodeState] = useState<NodeState[][]>([]);
@@ -42,7 +45,10 @@ export default function App({problems}: AppProps) {
 
     const [running, setRunning] = useState(false);
 
-    useEffect(() => setMounted(true), []);
+    useEffect(() => {
+        setMounted(true);
+        clickSoundRef.current = new Audio(`${BASE_PATH}/click.mp3`);
+    }, []);
 
     useLayoutEffect(() => {
         if (save.length > 0) {
@@ -145,6 +151,9 @@ export default function App({problems}: AppProps) {
 
     // TODO:
     function stopButtonHandler() {
+        clickSoundRef.current!.currentTime = 0;
+        clickSoundRef.current!.play().catch(() => {});
+
         interpreter.current!.reset();
         setNodeState(interpreter.current!.getNodeSnapshot());
 
@@ -159,6 +168,10 @@ export default function App({problems}: AppProps) {
 
 
     function stepButtonHandler() {
+        // TODO: Refactor this into a decorator of some sort?
+        clickSoundRef.current!.currentTime = 0;
+        clickSoundRef.current!.play().catch(() => {});
+
         for (let y = 1; y < GRID_HEIGHT - 1; y++) {
             for (let x = 0; x < GRID_WIDTH; x++) {
                 if (nodeState[y][x].type === "COMPUTATION") {
